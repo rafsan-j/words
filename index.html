@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline Vocabulary Builder</title>
+    <title>Offline Vocabulary Master (Fixed)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script> 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -49,28 +49,27 @@
             color: var(--text-primary);
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* Start items at top (prevents excessive centering on long mobile content) */
+            align-items: flex-start; 
             min-height: 100vh;
-            padding: 20px 10px; /* Reduced horizontal padding for mobile */
+            padding: 20px 10px; 
             transition: background-color 0.3s;
         }
         .container-main {
             width: 100%;
             max-width: 900px;
-            padding-top: 20px; /* Add vertical padding */
+            padding-top: 20px; 
             padding-bottom: 20px;
         }
         
-        /* Mobile Specific Adjustments */
+        /* Mobile Specific Adjustments - Ensure content flows naturally and horizontally padding is reduced */
         @media (max-width: 640px) {
              body {
-                /* On small screens, allow content to flow naturally, setting min-height to initial */
                 min-height: initial; 
-                display: block; /* Use block flow on small screens */
-                padding: 10px; /* Uniform smaller padding */
+                display: block; 
+                padding: 10px; 
             }
             .container-main {
-                margin: 0 auto; /* Center block element */
+                margin: 0 auto; 
                 padding-top: 0;
             }
         }
@@ -96,6 +95,8 @@
             transform-style: preserve-3d;
             transition: transform 0.6s;
             cursor: pointer;
+            /* CRUCIAL FIX: Prevents the entire screen from scrolling/pull-to-refresh on vertical swipes */
+            touch-action: none; 
         }
         .flashcard.flipped {
             transform: rotateY(180deg);
@@ -124,6 +125,7 @@
         }
         .btn-mark.selected {
             border: 3px solid;
+            box-shadow: 0 0 0 4px rgba(66, 153, 225, 0.5); /* Blue ring for selected */
         }
         
         /* Quiz Styling */
@@ -132,28 +134,28 @@
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-            padding: 1rem; /* Added padding for better look */
-            border-radius: 0.5rem; /* Added border-radius */
+            padding: 1rem; 
+            border-radius: 0.5rem; 
             transition: background-color 0.1s;
-            cursor: pointer; /* Added cursor pointer */
+            cursor: pointer; 
         }
         .quiz-option:hover {
             background-color: var(--bg-page);
         }
 
-        /* NEW: Quiz Answer Feedback */
+        /* Quiz Answer Feedback */
         .quiz-option.correct-answer {
-            background-color: #10b981; /* Tailwind green-500 */
+            background-color: #10b981; 
             color: white;
-            border-color: #059669; /* Tailwind green-600 */
+            border-color: #059669; 
         }
         .quiz-option.correct-answer span {
-             color: white !important; /* Force text color for better contrast */
+             color: white !important; 
         }
         .quiz-option.wrong-answer {
-            background-color: #f87171; /* Tailwind red-400 */
+            background-color: #f87171; 
             color: white;
-            border-color: #ef4444; /* Tailwind red-500 */
+            border-color: #ef4444; 
             opacity: 0.7;
         }
         .quiz-option.wrong-answer span {
@@ -168,16 +170,23 @@
         }
 
         /* QR Code Container (Specific Dark Mode fix for white background) */
+        /* QR Code Container (Specific Dark Mode fix for white background) */
         #qrcode-container > div {
             background-color: white;
             padding: 10px;
             border-radius: 8px;
         }
+        /* Fix for QR code on initial load - it's a table with specific styling */
+        #qrcode-container table, #qrcode-container canvas {
+            display: block; /* Helps centering */
+            margin: 0 auto;
+        }
 
         /* Mobile Optimization: Swiping feedback */
-        .swiping-up { border: 3px solid #10b981; }
-        .swiping-down { border: 3px solid #f97316; }
-        .swiping-left, .swiping-right { border: 3px solid #3b82f6; }
+        /* Increased border thickness for better visual feedback */
+        .swiping-up { border: 5px solid #10b981; } 
+        .swiping-down { border: 5px solid #f97316; } 
+        .swiping-left, .swiping-right { border: 5px solid #3b82f6; } 
 
 
         /* Tailwind class updates for Dark Mode compatibility */
@@ -231,7 +240,7 @@
                     <div class="card-face card-front">
                         <span class="text-sm font-medium text-blue-500 uppercase mb-2" id="card-tag-front"></span>
                         <h2 class="text-5xl font-extrabold text-gray-900" id="card-word"></h2>
-                        <p class="text-sm text-gray-500 mt-4">(Click/tap to reveal meaning, swipe for mobile controls)</p>
+                        <p class="text-sm text-gray-500 mt-4">(Click/tap to reveal meaning. **Use arrow keys or swipes** for controls.)</p>
                         <p id="card-deck-status" class="text-xs text-gray-400 mt-4"></p>
                     </div>
                     <div class="card-face card-back">
@@ -247,6 +256,9 @@
 
             <div class="w-full max-w-xl mx-auto mb-6 p-4 bg-white rounded-xl shadow-md border border-gray-100">
                 <h4 class="text-lg font-bold text-gray-800 mb-3 text-center">Mark Difficulty (For SRS Scheduling)</h4>
+                <p class="text-sm text-gray-500 mb-3 text-center">
+                    **Keyboard/Swipe Controls:** Up/Down Arrows or Vertical Swipes apply the selected action from Settings.
+                </p>
                 <div class="flex flex-wrap justify-center gap-3">
                     <button onclick="markDifficulty('easy')" id="mark-easy"
                         class="btn-mark flex-1 min-w-[100px] py-2 text-sm font-semibold rounded-full bg-green-200 text-green-800 hover:bg-green-300">
@@ -266,11 +278,11 @@
             <div class="flex space-x-4 mb-8 justify-center">
                 <button id="prevBtn" onclick="navigateCard(-1)"
                     class="px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-full hover:bg-gray-300 transition duration-150 shadow-md dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-700">
-                    &larr; Previous
+                    &larr; Previous (Left Arrow)
                 </button>
                 <button id="nextBtn" onclick="navigateCard(1)"
                     class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition duration-150 shadow-lg">
-                    Next Word &rarr;
+                    Next Word &rarr; (Right Arrow)
                 </button>
             </div>
 
@@ -365,22 +377,40 @@
                 
                 <hr class="my-6 border-gray-300">
 
-                <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-2">2. Sync Progress (Two-Way QR)</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-2">2. Sync Progress (QR / File)</h3>
 
-                <button onclick="showSyncModal('export')"
-                    class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition duration-150 shadow-lg mb-3">
-                    📤 Export & Generate QR Code (Source)
+                <p class="text-gray-600 mb-2 text-sm font-semibold">
+                    A. Export Data
+                </p>
+                <button onclick="exportToFile()"
+                    class="w-full px-6 py-3 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600 transition duration-150 shadow-lg mb-3">
+                    💾 Export to .json File (Recommended)
                 </button>
+                <button onclick="showSyncModal('export')"
+                    class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition duration-150 shadow-lg mb-5">
+                    📤 Generate QR Code for Text Sync
+                </button>
+                
+                <p class="text-gray-600 mb-2 text-sm font-semibold">
+                    B. Import Data
+                </p>
+                <div class="mb-3">
+                    <label for="file-upload" class="w-full px-6 py-3 bg-purple-500 text-white font-semibold rounded-full hover:bg-purple-600 transition duration-150 shadow-lg flex items-center justify-center cursor-pointer">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Import from .json File (Recommended)
+                    </label>
+                    <input type="file" id="file-upload" accept=".json" class="hidden" onchange="importFromFile(event)">
+                </div>
 
                 <p class="text-gray-600 mb-2 text-sm">
-                    Or paste the full sync data (from a scanned QR code) below to update this device.
+                    Or paste the full compressed sync data (from a QR code) below:
                 </p>
                 <textarea id="sync-import-area" rows="4" placeholder='Paste compressed data here...' 
                     class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"></textarea>
                 
                 <button onclick="importSyncDataFromTextarea()"
                     class="mt-2 w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-full hover:bg-purple-700 transition duration-150 shadow-lg">
-                    📥 Import & Update All Data (Target)
+                    📥 Import & Update All Data (Text Payload)
                 </button>
 
                 <div id="word-manager-status" class="mt-4 p-3 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700 flex justify-between items-center">
@@ -414,12 +444,12 @@
                         <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                     </label>
                 </div>
-                <h3 class="text-xl font-bold text-gray-900 mt-6">Mobile Swipe Actions (Flashcards)</h3>
-                <p class="text-sm text-gray-600 italic">Horizontal swipes are fixed (Left=Prev, Right=Next). Customize vertical swipes:</p>
+                <h3 class="text-xl font-bold text-gray-900 mt-6">Flashcard Actions (Vertical Swipes / Keyboard)</h3>
+                <p class="text-sm text-gray-600 italic">Horizontal swipes / Left/Right Arrows are fixed (Prev/Next). Customize vertical:</p>
                 
                 <div class="space-y-4">
                     <div class="flex flex-wrap items-center justify-between p-3 border border-gray-200 rounded-lg">
-                        <label for="swipe-up-action" class="font-medium text-gray-800 mb-2 w-full sm:w-auto sm:mb-0">Swipe Up Action:</label>
+                        <label for="swipe-up-action" class="font-medium text-gray-800 mb-2 w-full sm:w-auto sm:mb-0">Swipe Up / **Up Arrow** Action:</label>
                         <select id="swipe-up-action" onchange="saveSettings()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full sm:w-1/2 p-2.5">
                             <option value="easy">Easy (7 Days)</option>
                             <option value="hard">Hard (3 Days)</option>
@@ -428,7 +458,7 @@
                     </div>
                     
                     <div class="flex flex-wrap items-center justify-between p-3 border border-gray-200 rounded-lg">
-                        <label for="swipe-down-action" class="font-medium text-gray-800 mb-2 w-full sm:w-auto sm:mb-0">Swipe Down Action:</label>
+                        <label for="swipe-down-action" class="font-medium text-gray-800 mb-2 w-full sm:w-auto sm:mb-0">Swipe Down / **Down Arrow** Action:</label>
                         <select id="swipe-down-action" onchange="saveSettings()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full sm:w-1/2 p-2.5">
                             <option value="hard">Hard (3 Days)</option>
                             <option value="easy">Easy (7 Days)</option>
@@ -464,8 +494,8 @@
             
             <div id="sync-export-view">
                 <p class="text-gray-600 mb-4 text-sm">
-                    Scan this QR code with your target device's camera app to transfer ALL words and progress data.
-                    <span class="font-bold text-red-600 block mt-1">IMPORTANT:</span> The QR text must be copied and pasted into the "Import" area on the other device.
+                    Scan this QR code with your target device's camera app to get the **compressed text payload**. Then, **paste that text** into the import area on the other device.
+                    <span class="font-bold text-red-600 block mt-1">IMPORTANT:</span> The QR code transfers a large text string. Using the **File Export/Import** is generally more reliable.
                 </p>
                 <div id="qrcode-container" class="flex justify-center my-6">
                     </div>
@@ -535,7 +565,7 @@
             darkMode: false,
             swipeUp: 'easy',
             swipeDown: 'hard',
-            includeEasyInQuiz: false // New setting to control if 'easy' words are included in the quiz
+            includeEasyInQuiz: false 
         };
 
         // --- Initial Vocabulary Data (Fallback/Default) ---
@@ -1686,7 +1716,7 @@
         const quizModeEl = document.getElementById('quiz-mode');
         const reviewModeEl = document.getElementById('review-mode');
         const manageModeEl = document.getElementById('manage-mode');
-        const settingsModeEl = document.getElementById('settings-mode'); // New
+        const settingsModeEl = document.getElementById('settings-mode'); 
 
         const flashcardEl = document.getElementById('flashcard');
         const cardWordEl = document.getElementById('card-word');
@@ -1698,9 +1728,9 @@
         const totalWordsCountEl = document.getElementById('total-words-count');
         const quizDueCountEl = document.getElementById('quiz-due-count');
         const clearDataModalEl = document.getElementById('clearDataModal');
-        const syncModalEl = document.getElementById('syncModal'); // New
-        const qrCodeContainerEl = document.getElementById('qrcode-container'); // New
-        const quizCompleteModalEl = document.getElementById('quizCompleteModal'); // NEW
+        const syncModalEl = document.getElementById('syncModal'); 
+        const qrCodeContainerEl = document.getElementById('qrcode-container'); 
+        const quizCompleteModalEl = document.getElementById('quizCompleteModal'); 
 
         // Quiz DOM Elements 
         const quizWordEl = document.getElementById('quiz-word');
@@ -1729,7 +1759,7 @@
         // --- Data Serialization / QR Sync Logic ---
 
         /**
-         * Compresses and encodes the combined data for QR transfer.
+         * Compresses and encodes the combined data for QR transfer or file export.
          * @returns {string} Base64-encoded compressed JSON string.
          */
         function exportDataToJSON() {
@@ -1775,6 +1805,71 @@
                 console.error("Error importing/parsing sync data:", e);
                 return null;
             }
+        }
+        
+        // --- New File-Based Sync Logic ---
+        
+        window.exportToFile = function() {
+            try {
+                const data = exportDataToJSON();
+                const jsonString = JSON.stringify({ compressedData: data }); // Wrap the compressed data in a simple JSON for easy file import
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                
+                // Filename includes timestamp for uniqueness
+                const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, ''); 
+                a.download = `vocab_sync_${timestamp}.json`;
+                a.href = url;
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                displayError(`✅ Exported ${vocabularyWords.length} words to **vocab_sync_${timestamp}.json**`);
+            } catch(e) {
+                 console.error("File export failed:", e);
+                 displayError("❌ File export failed. Check console for details.");
+            }
+        }
+
+        window.importFromFile = function(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const fileContent = e.target.result;
+                    const parsedFile = JSON.parse(fileContent);
+                    const syncDataText = parsedFile.compressedData;
+
+                    if (!syncDataText) {
+                        return displayError("Invalid sync file format. Missing 'compressedData' key.");
+                    }
+                    
+                    const importedData = importDataFromJSON(syncDataText);
+                    
+                    if (importedData && Array.isArray(importedData.vocab) && typeof importedData.progress === 'object') {
+                        vocabularyWords = importedData.vocab;
+                        wordProgress = importedData.progress;
+                        saveAllData(); 
+                        initializeFlashcardDeck(); 
+                        displayError(`✅ Sync successful via file! Imported ${vocabularyWords.length} words and all progress data.`);
+                        setMode('flashcard');
+                    } else {
+                        displayError("❌ Sync failed. The file data is corrupted or not in the correct compressed format.");
+                    }
+                } catch (error) {
+                    console.error("File import error:", error);
+                    displayError("❌ Error processing file. Ensure it's a valid JSON sync file.");
+                }
+                // Reset file input value to allow importing the same file again
+                event.target.value = ''; 
+            };
+            reader.readAsText(file);
         }
 
         window.showSyncModal = function(type) {
@@ -1840,7 +1935,7 @@
             userSettings.darkMode = document.getElementById('dark-mode-toggle').checked;
             userSettings.swipeUp = document.getElementById('swipe-up-action').value;
             userSettings.swipeDown = document.getElementById('swipe-down-action').value;
-            userSettings.includeEasyInQuiz = document.getElementById('include-easy-toggle').checked; // NEW LINE
+            userSettings.includeEasyInQuiz = document.getElementById('include-easy-toggle').checked; 
 
             try {
                 localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(userSettings));
@@ -1876,10 +1971,48 @@
         window.toggleIncludeEasy = function(isInclude) {
             userSettings.includeEasyInQuiz = isInclude;
             saveSettings();
-            updateQuizDueCount(); // Update the quiz due count badge immediately
+            updateQuizDueCount(); 
         }
 
-        // --- Touch/Gesture Logic ---
+        // --- Keyboard Listener Fix (New Feature) ---
+        function handleKeydown(e) {
+            if (currentMode !== 'flashcard' || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return; // Only process keys in flashcard mode, and not when focused on an input
+            }
+            
+            // Prevent default scrolling for up/down arrows
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+            }
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    navigateCard(-1);
+                    break;
+                case 'ArrowRight':
+                    navigateCard(1);
+                    break;
+                case 'ArrowUp':
+                    // Map to configured swipe up action
+                    markDifficulty(userSettings.swipeUp);
+                    displayError(`Marked as **${userSettings.swipeUp}** via Up Arrow.`);
+                    break;
+                case 'ArrowDown':
+                    // Map to configured swipe down action
+                    markDifficulty(userSettings.swipeDown);
+                    displayError(`Marked as **${userSettings.swipeDown}** via Down Arrow.`);
+                    break;
+                case ' ': // Spacebar to flip the card
+                    flipCard();
+                    break;
+            }
+        }
+        
+        function setupKeyListeners() {
+            document.addEventListener('keydown', handleKeydown);
+        }
+
+        // --- Touch/Gesture Logic (Improved) ---
 
         let touchStartX = 0;
         let touchStartY = 0;
@@ -1889,7 +2022,6 @@
             touchStartX = e.changedTouches[0].screenX;
             touchStartY = e.changedTouches[0].screenY;
             
-            // Add visual feedback class immediately
             flashcardEl.classList.add('transition-transform', 'duration-150');
         }
 
@@ -1915,11 +2047,11 @@
             // --- Vertical Swipe (Difficulty Mark) ---
             else if (Math.abs(dy) > SWIPE_THRESHOLD && Math.abs(dy) > Math.abs(dx)) {
                 if (dy < 0) {
-                    // Swipe Up (e.g., Easy)
+                    // Swipe Up (Mark)
                     markDifficulty(userSettings.swipeUp);
                     displayError(`Marked as **${userSettings.swipeUp}** via Swipe Up.`);
                 } else {
-                    // Swipe Down (e.g., Hard)
+                    // Swipe Down (Mark)
                     markDifficulty(userSettings.swipeDown);
                     displayError(`Marked as **${userSettings.swipeDown}** via Swipe Down.`);
                 }
@@ -1939,17 +2071,24 @@
              // Add new classes for visual cue
              if (Math.abs(dy) > 10 || Math.abs(dx) > 10) {
                  if (Math.abs(dx) > Math.abs(dy)) {
+                     // Horizontal
                      flashcardEl.classList.add(dx > 0 ? 'swiping-right' : 'swiping-left');
                  } else {
+                     // Vertical
                      flashcardEl.classList.add(dy < 0 ? 'swiping-up' : 'swiping-down');
+                 }
+                 // Prevent the whole body from scrolling while swiping on the card
+                 if(e.cancelable) {
+                    e.preventDefault();
                  }
              }
         }
 
         function setupTouchListeners() {
             if (flashcardEl && !flashcardEl.dataset.touchListenersSetup) {
+                // Passive: false for touchmove is often required to call preventDefault
                 flashcardEl.addEventListener('touchstart', handleTouchStart, { passive: true });
-                flashcardEl.addEventListener('touchmove', handleTouchMove, { passive: true });
+                flashcardEl.addEventListener('touchmove', handleTouchMove, { passive: false }); 
                 flashcardEl.addEventListener('touchend', handleTouchEnd, { passive: false });
                 flashcardEl.dataset.touchListenersSetup = true;
             }
@@ -2081,13 +2220,23 @@
         // --- UI Utility ---
 
         function displayError(message) {
+            // Use blue for successful/informational messages, red for actual errors
+            const isError = message.includes('❌') || message.includes('failed') || message.includes('Error');
+            
             errorEl.innerHTML = message;
-            errorEl.classList.remove('hidden', 'bg-red-100', 'border-red-400', 'text-red-700');
-            errorEl.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-700'); 
+            errorEl.classList.remove('hidden', 'bg-red-100', 'border-red-400', 'text-red-700', 'bg-blue-100', 'border-blue-400', 'text-blue-700');
+            
+            if (isError) {
+                errorEl.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+            } else {
+                errorEl.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-700'); 
+            }
+            
             setTimeout(() => errorEl.classList.add('hidden'), 5000);
         }
 
         function updateQuizDueCount() {
+            // Only count words that are viewed and due
             const dueWords = getQuizWords().filter(w => isReviewDue(wordProgress[w.word]?.nextReviewDate));
             const count = dueWords.length;
             
@@ -2103,13 +2252,13 @@
             Object.keys(modeButtons).forEach(mode => {
                 if (mode === currentMode) {
                     modeButtons[mode].classList.add('bg-blue-500', 'text-white');
-                    modeButtons[mode].classList.remove('text-gray-700', 'hover:bg-gray-200');
+                    // Remove hover state from the active button for better visual distinction
+                    modeButtons[mode].classList.remove('text-gray-700', 'hover:bg-gray-200', 'dark:text-gray-700', 'dark:hover:bg-gray-200');
                 } else {
                     modeButtons[mode].classList.remove('bg-blue-500', 'text-white');
-                    // Ensure the button classes are correct based on the theme in the long run,
-                    // but for a simple toggle, this is fine. Using 'text-gray-700' for dark/light mode
-                    // will rely on CSS variables doing the work.
+                    // Apply generic style for inactive buttons
                     modeButtons[mode].classList.add('text-gray-700', 'hover:bg-gray-200');
+                    // Dark mode adjustments are handled by global CSS variables where possible
                 }
             });
         }
@@ -2153,6 +2302,7 @@
                 btn.classList.remove('selected', 'border-green-500', 'border-yellow-500', 'border-red-500');
                 if (progress.level === level) {
                     btn.classList.add('selected');
+                    // Use CSS classes from Tailwind or custom CSS vars
                     if (level === 'easy') btn.classList.add('border-green-500');
                     else if (level === 'hard') btn.classList.add('border-yellow-500');
                     else if (level === 'superhard') btn.classList.add('border-red-500');
@@ -2191,6 +2341,7 @@
                 ? `<span class="text-red-500 font-semibold">Missed ${progress.wrongAttempts} time(s).</span>`
                 : '') + (reviewText ? `<div class="text-xs text-gray-700 mt-1">${reviewText}</div>` : '');
 
+            // Ensure card is unflipped when navigating to a new card
             if (isFlipped) {
                 flashcardEl.classList.remove('flipped');
                 isFlipped = false;
@@ -2204,10 +2355,12 @@
             let newIndex = currentWordIndex + direction;
 
             if (newIndex >= flashcardDeckIndices.length) {
+                // End of deck: reshuffle and start over
                 initializeFlashcardDeck();
                 displayError("📚 Flashcard cycle complete! The deck has been reshuffled for a fresh start.");
                 currentWordIndex = 0; 
             } else if (newIndex < 0) {
+                // Beginning of deck: wrap around to the end
                 currentWordIndex = flashcardDeckIndices.length - 1;
             } else {
                 currentWordIndex = newIndex;
@@ -2217,14 +2370,18 @@
         }
 
         window.flipCard = function() {
+            if (vocabularyWords.length === 0 || flashcardDeckIndices.length === 0) return;
+            
             isFlipped = !isFlipped;
             flashcardEl.classList.toggle('flipped', isFlipped);
             
-            if (isFlipped && vocabularyWords.length > 0 && flashcardDeckIndices.length > 0) {
+            if (isFlipped) {
                 const actualVocabIndex = flashcardDeckIndices[currentWordIndex];
                 const word = vocabularyWords[actualVocabIndex].word;
+                // If it's the first time viewing the card, mark it as 'hard' (default initial level)
                 if (!wordProgress[word] || !wordProgress[word].viewed) {
                     saveWordProgress(word, { viewed: true, level: 'hard', nextReviewDate: getNextReviewDate('hard') });
+                    updateDifficultyButtons(); // Update buttons immediately
                 }
             }
         }
@@ -2240,11 +2397,12 @@
             saveWordProgress(word, { 
                 level: level, 
                 viewed: true, 
-                nextReviewDate: nextReviewDate
+                nextReviewDate: nextReviewDate,
+                // Do not reset wrongAttempts here, only on a correct quiz answer
             }); 
             updateDifficultyButtons();
             
-            // NEW: Navigate to the next card immediately after marking
+            // Navigate to the next card immediately after marking
             navigateCard(1); 
         }
         
@@ -2256,7 +2414,6 @@
         }
 
         function getQuizWords() {
-            // Read from global settings
             const includeEasy = userSettings.includeEasyInQuiz; 
             
             let eligibleWords = vocabularyWords.filter(wordData => {
@@ -2270,16 +2427,19 @@
                     return false; // Exclude 'easy' words if setting is off
                 }
                 
-                return true; // Include all other viewed words (hard, superhard, or easy if setting is on)
+                return true; 
             });
             
+            // Filter by due date
             const dueWords = eligibleWords.filter(wordData => {
                 const progress = wordProgress[wordData.word];
                 return isReviewDue(progress.nextReviewDate);
             });
 
+            // Prioritize due words, otherwise use all eligible words
             const wordsToQuiz = (dueWords.length > 0) ? dueWords : eligibleWords;
             
+            // Sort to prioritize Super Hard, then Hard, then randomize others
             return wordsToQuiz.sort((a, b) => {
                 const levelA = wordProgress[a.word]?.level || 'hard';
                 const levelB = wordProgress[b.word]?.level || 'hard';
@@ -2289,6 +2449,7 @@
                 if (levelA === 'hard' && levelB === 'easy') return -1;
                 if (levelA === 'easy' && levelB === 'hard') return 1;
 
+                // Default to random order if levels are the same (or both easy/hard)
                 return 0.5 - Math.random(); 
             });
         }
@@ -2304,12 +2465,16 @@
                 .sort(() => 0.5 - Math.random())
                 .slice(0, 3);
             
+            // If there aren't enough distinct wrong meanings, fill with a placeholder (shouldn't happen often)
             while (wrongMeanings.length < 3 && vocabularyWords.length > 1) {
                 const fillerMeaning = `A random meaning ${Math.random().toFixed(4)}`;
                 if (!wrongMeanings.includes(fillerMeaning) && fillerMeaning !== correctMeaning) {
                     wrongMeanings.push(fillerMeaning);
                 }
             }
+            // Truncate to ensure exactly 3 wrong options
+            wrongMeanings = wrongMeanings.slice(0, 3);
+
 
             let options = [
                 { meaning: correctMeaning, correct: true, id: 0 },
@@ -2329,15 +2494,22 @@
 
             if (quizWords.length === 0) {
                 currentQuizWord = null;
-                // NEW: Show the quiz completion modal
+                
                 if (vocabularyWords.length > 0) {
-                    quizCompleteModalEl.style.display = 'block';
+                    // Check if *any* words are eligible (viewed)
+                    const eligibleCount = vocabularyWords.filter(w => wordProgress[w.word]?.viewed).length;
+                    if (eligibleCount > 0) {
+                        quizCompleteModalEl.style.display = 'block';
+                    } else {
+                        // All words unviewed
+                        quizWordEl.textContent = "No words available to quiz.";
+                        quizOptionsEl.innerHTML = '<p class="text-gray-500">View words in Flashcard mode first to make them eligible.</p>';
+                    }
+                } else {
+                    quizWordEl.textContent = "No words available.";
+                    quizOptionsEl.innerHTML = '<p class="text-gray-500">Add words in the Word Manager.</p>';
                 }
                 
-                quizWordEl.textContent = vocabularyWords.length === 0 ? "No words available." : "Quiz Complete for now!";
-                quizOptionsEl.innerHTML = vocabularyWords.length === 0 
-                    ? '<p class="text-gray-500">Add words in the Word Manager.</p>' 
-                    : `<p class="text-gray-500">${dueText}. Check back later or mark more flashcards as hard/superhard.</p>`;
                 quizStatusEl.innerHTML = "";
                 quizMeaningRecallEl.classList.add('hidden');
                 quizPromptRecallEl.classList.add('hidden');
@@ -2385,7 +2557,7 @@
             currentQuizWordIndex++;
         }
 
-        // NEW: Quiz Completion Modal Handlers
+        // Quiz Completion Modal Handlers
         window.hideQuizCompleteModal = function() {
             quizCompleteModalEl.style.display = 'none';
             setMode('flashcard');
@@ -2393,7 +2565,7 @@
 
         window.restartQuiz = function() {
             quizCompleteModalEl.style.display = 'none';
-            currentQuizWordIndex = 0; // Reset index to start over
+            currentQuizWordIndex = 0; 
             loadQuizWord(); 
         }
 
@@ -2403,12 +2575,14 @@
             const currentProgress = wordProgress[word] || {};
             
             if (isCorrect) {
+                // Correct: Set to easy, reset wrong attempts, next review in 7 days
                 saveWordProgress(word, { 
                     wrongAttempts: 0, 
                     level: 'easy', 
                     nextReviewDate: getNextReviewDate('easy') 
                 });
             } else {
+                // Incorrect: Set to super hard, increment wrong attempts, next review in 1 day
                 const currentAttempts = (currentProgress.wrongAttempts || 0) + 1;
                 saveWordProgress(word, { 
                     wrongAttempts: currentAttempts, 
@@ -2416,6 +2590,7 @@
                     nextReviewDate: getNextReviewDate('missed') 
                 });
             }
+            updateQuizDueCount(); // Update the badge immediately
         }
 
         window.checkRecognitionAnswer = function(selectedEl, word) {
@@ -2424,7 +2599,6 @@
             Array.from(quizOptionsEl.children).forEach(el => {
                 el.onclick = null;
                 el.classList.remove('hover:bg-f3f7fe', 'hover:border-b0c9f1');
-                // Ensure all options lose hover/cursor pointer
                 el.style.cursor = 'default'; 
             });
 
@@ -2446,7 +2620,9 @@
             const correctWord = currentQuizWord.word.trim().toLowerCase();
             const word = currentQuizWord.word;
 
-            const isCorrect = userAnswer === correctWord;
+            // Use includes for a slightly more forgiving check, or strictly ===
+            // Sticking to strict equality for now, as it's a vocabulary app.
+            const isCorrect = userAnswer === correctWord; 
 
             recallInputEl.disabled = true;
             recallCheckBtnEl.disabled = true;
@@ -2470,6 +2646,7 @@
             const reviewListEl = document.getElementById('review-list');
             const filterButtons = document.querySelectorAll('#review-mode button');
 
+            // Update button styles
             filterButtons.forEach(btn => btn.classList.remove('bg-opacity-50', 'ring-2', 'ring-offset-2', 'ring-blue-500'));
             document.getElementById(`filter-${filter}`).classList.add('bg-opacity-50', 'ring-2', 'ring-offset-2', 'ring-blue-500');
 
@@ -2494,7 +2671,7 @@
                 let attemptText = attempts > 0 ? `<span class="text-red-500 ml-2">(${attempts} mistakes)</span>` : '';
                 
                 const reviewDateText = progress.nextReviewDate ? 
-                    ` (Review: ${isReviewDue(progress.nextReviewDate) ? '<span class="text-red-600">DUE</span>' : progress.nextReviewDate})` : '';
+                    ` (Review: ${isReviewDue(progress.nextReviewDate) ? '<span class="text-red-600 font-bold">DUE</span>' : progress.nextReviewDate})` : '';
 
                 return `<div class="p-3 bg-white border border-gray-200 rounded-lg flex justify-between items-center hover:bg-gray-50 cursor-pointer" onclick="viewReviewWord('${wordData.word}')">
                             <span class="font-semibold text-gray-800">${wordData.word}${reviewDateText}</span>
@@ -2512,12 +2689,16 @@
                      setMode('flashcard');
                      flipCard(); 
                 } else {
+                     // If the word isn't in the current shuffled deck, re-initialize and find it
                      initializeFlashcardDeck(); 
                      const newDeckIndex = flashcardDeckIndices.findIndex(i => i === index);
                      if(newDeckIndex !== -1) {
                         currentWordIndex = newDeckIndex;
                         setMode('flashcard');
                         flipCard(); 
+                     } else {
+                        // Fallback: This should ideally not happen if word is in vocabularyWords
+                        displayError("Word not found in deck after re-shuffle.");
                      }
                 }
             }
@@ -2539,6 +2720,7 @@
 
                 const validNewWords = [];
                 let duplicates = 0;
+                // Use Set for quick lookup of existing words (case-insensitive)
                 const existingWordKeys = new Set(vocabularyWords.map(w => w.word.trim().toLowerCase()));
 
                 for (const item of newWords) {
@@ -2576,7 +2758,7 @@
 
             } catch (e) {
                 console.error("JSON Parsing Error:", e);
-                displayError("Error parsing JSON. Check the format carefully (e.g., must use double quotes for keys/strings).");
+                displayError("❌ Error parsing JSON. Check the format carefully (e.g., must use double quotes for keys/strings).");
             }
         }
 
@@ -2585,6 +2767,7 @@
         window.onload = () => {
             loadAllData();
             setupTouchListeners(); 
+            setupKeyListeners(); // Setup keyboard listeners on load
 
             if (vocabularyWords.length > 0) {
                 setMode('flashcard');
@@ -2592,6 +2775,7 @@
                  setMode('manage');
             }
             
+            // Modal close listeners
             window.onclick = function(event) {
                 if (event.target == clearDataModalEl) {
                     hideClearDataModal();
@@ -2599,7 +2783,6 @@
                 if (event.target == syncModalEl) {
                     hideSyncModal();
                 }
-                 // NEW: Close modal on outside click
                 if (event.target == quizCompleteModalEl) {
                     hideQuizCompleteModal();
                 }
