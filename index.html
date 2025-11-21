@@ -132,32 +132,9 @@
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-            padding: 1rem; /* Added padding for better look */
-            border-radius: 0.5rem; /* Added border-radius */
-            transition: background-color 0.1s;
-            cursor: pointer; /* Added cursor pointer */
         }
         .quiz-option:hover {
             background-color: var(--bg-page);
-        }
-
-        /* NEW: Quiz Answer Feedback */
-        .quiz-option.correct-answer {
-            background-color: #10b981; /* Tailwind green-500 */
-            color: white;
-            border-color: #059669; /* Tailwind green-600 */
-        }
-        .quiz-option.correct-answer span {
-             color: white !important; /* Force text color for better contrast */
-        }
-        .quiz-option.wrong-answer {
-            background-color: #f87171; /* Tailwind red-400 */
-            color: white;
-            border-color: #ef4444; /* Tailwind red-500 */
-            opacity: 0.7;
-        }
-        .quiz-option.wrong-answer span {
-             color: white !important;
         }
 
         /* Input Styling */
@@ -482,1227 +459,99 @@
             </div>
         </div>
     </div>
-    
-    <div id="quizCompleteModal" class="modal">
-        <div class="modal-content">
-            <h3 class="text-2xl font-bold text-blue-600 mb-4">Quiz Complete! 🥳</h3>
-            <p class="text-gray-600 mb-6">You've gone through all the eligible words for now.</p>
-            <div class="flex justify-end space-x-3">
-                <button onclick="hideQuizCompleteModal()" class="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-full hover:bg-gray-300">
-                    Back to Flashcards
-                </button>
-                <button onclick="restartQuiz()" class="px-4 py-2 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700">
-                    Restart Quiz
-                </button>
-            </div>
-        </div>
-    </div>
-    
+
     <style>
         .modal {
-            display: none; 
-            position: fixed; 
-            z-index: 100; 
+            display: none;
+            position: fixed;
+            z-index: 100;
             left: 0;
             top: 0;
-            width: 100%; 
-            height: 100%; 
-            overflow: auto; 
-            background-color: rgba(0,0,0,0.4); 
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
             padding-top: 60px;
         }
         .modal-content {
             background-color: var(--bg-container);
-            margin: 5% auto; 
+            margin: 5% auto;
             padding: 20px;
             border: 1px solid var(--border-color);
-            width: 90%; 
-            max-width: 500px; 
+            width: 90%;
+            max-width: 500px;
             border-radius: 12px;
             box-shadow: var(--shadow);
         }
+        /* Quiz Answer Styling */
+        .correct-answer {
+            background-color: #d1fae5; /* Green 100 */
+            border-color: #34d399; /* Green 400 */
+        }
+        .wrong-answer {
+            background-color: #fee2e2; /* Red 100 */
+            border-color: #f87171; /* Red 400 */
+        }
+        [data-theme='dark'] .correct-answer {
+            background-color: #065f46; /* Green 800 */
+            border-color: #34d399;
+        }
+        [data-theme='dark'] .wrong-answer {
+            background-color: #991b1b; /* Red 800 */
+            border-color: #f87171;
+        }
+        .recall-result-correct {
+            color: #10b981; /* Green 500 */
+        }
+        .recall-result-wrong {
+            color: #ef4444; /* Red 500 */
+        }
+
     </style>
-
-
     <script>
         // --- CONSTANTS ---
         const PROGRESS_STORAGE_KEY = 'vocabAppProgress';
         const VOCAB_STORAGE_KEY = 'vocabAppWords';
         const SETTINGS_STORAGE_KEY = 'vocabAppSettings';
-        
+        const SWIPE_THRESHOLD = 75; // Increased sensitivity for easier swiping
+
         // --- Default Settings ---
         const defaultSettings = {
             darkMode: false,
             swipeUp: 'easy',
             swipeDown: 'hard',
-            includeEasyInQuiz: false // New setting to control if 'easy' words are included in the quiz
+            includeEasyInQuiz: false 
         };
-
-        // --- Initial Vocabulary Data (Fallback/Default) ---
-        const defaultVocabulary = [
-  {"word": "loquacious", "meaning": "very talkative", "tag": "speech_talkative"},
-  {"word": "garrulous", "meaning": "excessively talkative, especially on trivial matters", "tag": "speech_talkative"},
-  {"word": "verbose", "meaning": "using more words than are needed", "tag": "speech_talkative"},
-  {"word": "voluble", "meaning": "speaking incessantly and fluently", "tag": "speech_talkative"},
-  {"word": "prolix", "meaning": "tediously prolonged; wordy", "tag": "speech_talkative"},
-  {"word": "prattle", "meaning": "talk at length in a foolish or inconsequential way", "tag": "speech_talkative"},
-  {"word": "grandiloquent", "meaning": "pompous or extravagant in language, style, or manner", "tag": "speech_talkative"},
-  {"word": "taciturn", "meaning": "reserved or uncommunicative in speech", "tag": "speech_quiet"},
-  {"word": "laconic", "meaning": "using very few words", "tag": "speech_quiet"},
-  {"word": "reticent", "meaning": "not revealing one's thoughts or feelings readily", "tag": "speech_quiet"},
-  {"word": "curt", "meaning": "rudely brief", "tag": "speech_quiet"},
-  {"word": "succinct", "meaning": "briefly and clearly expressed", "tag": "speech_quiet"},
-  {"word": "pithy", "meaning": "concise and forcefully expressive", "tag": "speech_quiet"},
-  {"word": "diatribe", "meaning": "a forceful and bitter verbal attack", "tag": "criticism"},
-  {"word": "tirade", "meaning": "a long, angry speech of criticism or accusation", "tag": "criticism"},
-  {"word": "harangue", "meaning": "a lengthy and aggressive speech", "tag": "criticism"},
-  {"word": "castigate", "meaning": "to reprimand severely", "tag": "criticism"},
-  {"word": "censure", "meaning": "express severe disapproval", "tag": "criticism"},
-  {"word": "lambaste", "meaning": "criticize harshly", "tag": "criticism"},
-  {"word": "vituperate", "meaning": "blame or insult in strong or violent language", "tag": "criticism"},
-  {"word": "excoriate", "meaning": "criticize severely (literally: to wear off the skin)", "tag": "criticism"},
-  {"word": "admonish", "meaning": "warn or reprimand someone firmly", "tag": "criticism"},
-  {"word": "berate", "meaning": "scold or criticize (someone) angrily", "tag": "criticism"},
-  {"word": "chastise", "meaning": "rebuke or reprimand severely", "tag": "criticism"},
-  {"word": "chide", "meaning": "scold or rebuke", "tag": "criticism"},
-  {"word": "deride", "meaning": "express contempt for; ridicule", "tag": "criticism"},
-  {"word": "disparage", "meaning": "regard or represent as being of little worth", "tag": "criticism"},
-  {"word": "impugn", "meaning": "dispute the truth, validity, or honesty of (a statement or motive)", "tag": "criticism"},
-  {"word": "objurgate", "meaning": "rebuke severely; scold", "tag": "criticism"},
-  {"word": "rebuke", "meaning": "express sharp disapproval or criticism", "tag": "criticism"},
-  {"word": "reproach", "meaning": "address (someone) in such a way as to express disapproval or disappointment", "tag": "criticism"},
-  {"word": "upbraid", "meaning": "find fault with (someone); scold", "tag": "criticism"},
-  {"word": "vilify", "meaning": "speak or write about in an abusively disparaging manner", "tag": "criticism"},
-  {"word": "laud", "meaning": "praise highly", "tag": "praise"},
-  {"word": "extol", "meaning": "praise enthusiastically", "tag": "praise"},
-  {"word": "venerate", "meaning": "regard with great respect", "tag": "praise"},
-  {"word": "aggrandize", "meaning": "increase the power, status, or wealth of", "tag": "praise"},
-  {"word": "eulogize", "meaning": "praise highly in speech or writing", "tag": "praise"},
-  {"word": "acclaim", "meaning": "praise enthusiastically and publicly", "tag": "praise"},
-  {"word": "accolade", "meaning": "an award or privilege granted as a special honor", "tag": "praise"},
-  {"word": "adulate", "meaning": "praise (someone) excessively or obsequiously", "tag": "praise"},
-  {"word": "commend", "meaning": "praise formally or officially", "tag": "praise"},
-  {"word": "encomium", "meaning": "a speech or piece of writing that praises someone or something highly", "tag": "praise"},
-  {"word": "exalt", "meaning": "hold (someone or something) in very high regard", "tag": "praise"},
-  {"word": "panegyric", "meaning": "a public speech or published text in praise of someone or something", "tag": "praise"},
-  {"word": "revere", "meaning": "feel deep respect or admiration for (something)", "tag": "praise"},
-  {"word": "obdurate", "meaning": "stubbornly refusing to change one's opinion", "tag": "stubborn"},
-  {"word": "obstinate", "meaning": "very difficult to change or overcome", "tag": "stubborn"},
-  {"word": "intransigent", "meaning": "unwilling or refusing to change one's views", "tag": "stubborn"},
-  {"word": "intractable", "meaning": "hard to control or deal with", "tag": "stubborn"},
-  {"word": "tenacious", "meaning": "tending to keep a firm hold of something; clinging", "tag": "stubborn"},
-  {"word": "adamant", "meaning": "refusing to be persuaded or to change one's mind", "tag": "stubborn"},
-  {"word": "dogmatic", "meaning": "inclined to lay down principles as incontrovertibly true", "tag": "stubborn"},
-  {"word": "implacable", "meaning": "unable to be placated", "tag": "stubborn"},
-  {"word": "recalcitrant", "meaning": "having an obstinately uncooperative attitude toward authority", "tag": "stubborn"},
-  {"word": "refractory", "meaning": "stubborn or unmanageable", "tag": "stubborn"},
-  {"word": "unyielding", "meaning": "not giving way to pressure; hard or solid", "tag": "stubborn"},
-  {"word": "ephemeral", "meaning": "lasting for a very short time", "tag": "fleeting"},
-  {"word": "evanescent", "meaning": "soon passing out of sight, memory, or existence", "tag": "fleeting"},
-  {"word": "transitory", "meaning": "not permanent", "tag": "fleeting"},
-  {"word": "transient", "meaning": "lasting only for a short time", "tag": "fleeting"},
-  {"word": "fugacious", "meaning": "tending to disappear; fleeting", "tag": "fleeting"},
-  {"word": "placate", "meaning": "make (someone) less angry or hostile", "tag": "calm_soothe"},
-  {"word": "mollify", "meaning": "appease the anger or anxiety of (someone)", "tag": "calm_soothe"},
-  {"word": "assuage", "meaning": "make (an unpleasant feeling) less intense", "tag": "calm_soothe"},
-  {"word": "mitigate", "meaning": "make less severe, serious, or painful", "tag": "calm_soothe"},
-  {"word": "alleviate", "meaning": "make (suffering, deficiency, or a problem) less severe", "tag": "calm_soothe"},
-  {"word": "allay", "meaning": "diminish or put at rest (fear, suspicion, or worry)", "tag": "calm_soothe"},
-  {"word": "ameliorate", "meaning": "make (something bad or unsatisfactory) better", "tag": "calm_soothe"},
-  {"word": "appease", "meaning": "pacify or placate (someone) by acceding to their demands", "tag": "calm_soothe"},
-  {"word": "conciliate", "meaning": "stop (someone) from being angry or discontented", "tag": "calm_soothe"},
-  {"word": "pacify", "meaning": "quell the anger, agitation, or excitement of", "tag": "calm_soothe"},
-  {"word": "propitiate", "meaning": "win or regain the favor of (a god, spirit, or person)", "tag": "calm_soothe"},
-  {"word": "aggravate", "meaning": "make (a problem, injury, or offense) worse or more serious", "tag": "worsen"},
-  {"word": "exacerbate", "meaning": "make (a problem, bad situation, or negative feeling) worse", "tag": "worsen"},
-  {"word": "probity", "meaning": "the quality of having strong moral principles; honesty", "tag": "truth"},
-  {"word": "veracity", "meaning": "conformity to facts; accuracy", "tag": "truth"},
-  {"word": "candid", "meaning": "truthful and straightforward; frank", "tag": "truth"},
-  {"word": "ingenuous", "meaning": "innocent and unsuspecting", "tag": "truth"},
-  {"word": "frankness", "meaning": "the quality of being open, honest, and direct", "tag": "truth"},
-  {"word": "fealty", "meaning": "sworn loyalty to a lord", "tag": "truth"},
-  {"word": "indisputable", "meaning": "unable to be challenged or denied", "tag": "truth"},
-  {"word": "indubitable", "meaning": "impossible to doubt; unquestionable", "tag": "truth"},
-  {"word": "verisimilitude", "meaning": "the appearance of being true or real", "tag": "truth"},
-  {"word": "mendacity", "meaning": "untruthfulness", "tag": "lies_fake"},
-  {"word": "prevaricate", "meaning": "speak or act in an evasive way", "tag": "lies_fake"},
-  {"word": "chicanery", "meaning": "the use of trickery to achieve a political, financial, or legal purpose", "tag": "lies_fake"},
-  {"word": "guile", "meaning": "sly or cunning intelligence", "tag": "lies_fake"},
-  {"word": "specious", "meaning": "superficially plausible, but actually wrong", "tag": "lies_fake"},
-  {"word": "apocryphal", "meaning": "of doubtful authenticity, although widely circulated as being true", "tag": "lies_fake"},
-  {"word": "artifice", "meaning": "clever or cunning devices or expedients, especially as used to trick or deceive others", "tag": "lies_fake"},
-  {"word": "belie", "meaning": "(of an appearance) fail to give a true notion or impression of (something); disguise or contradict", "tag": "lies_fake"},
-  {"word": "canard", "meaning": "an unfounded rumor or story", "tag": "lies_fake"},
-  {"word": "dissemble", "meaning": "conceal one's true motives, feelings, or beliefs", "tag": "lies_fake"},
-  {"word": "duplicity", "meaning": "deceitfulness; double-dealing", "tag": "lies_fake"},
-  {"word": "equivocate", "meaning": "use ambiguous language so as to conceal the truth or avoid committing oneself", "tag": "lies_fake"},
-  {"word": "erroneous", "meaning": "wrong; incorrect", "tag": "lies_fake"},
-  {"word": "fabricate", "meaning": "invent or concoct (something), typically with deceitful intent", "tag": "lies_fake"},
-  {"word": "fallacious", "meaning": "based on a mistaken belief", "tag": "lies_fake"},
-  {"word": "feign", "meaning": "pretend to be affected by (a feeling, state, or injury)", "tag": "lies_fake"},
-  {"word": "perfidious", "meaning": "deceitful and untrustworthy", "tag": "lies_fake"},
-  {"word": "spurious", "meaning": "not being what it purports to be; false or fake", "tag": "lies_fake"},
-  {"word": "lethargic", "meaning": "affected by lethargy; sluggish and apathetic", "tag": "lazy_inactive"},
-  {"word": "torpor", "meaning": "a state of physical or mental inactivity; lethargy", "tag": "lazy_inactive"},
-  {"word": "languid", "meaning": "displaying or having a disinclination for physical exertion", "tag": "lazy_inactive"},
-  {"word": "indolent", "meaning": "wanting to avoid activity or exertion; lazy", "tag": "lazy_inactive"},
-  {"word": "listless", "meaning": "lacking energy or enthusiasm", "tag": "lazy_inactive"},
-  {"word": "dormant", "meaning": "having normal physical functions suspended or slowed down", "tag": "lazy_inactive"},
-  {"word": "idle", "meaning": "not active or in use", "tag": "lazy_inactive"},
-  {"word": "impassive", "meaning": "not feeling or showing emotion", "tag": "lazy_inactive"},
-  {"word": "inert", "meaning": "lacking the ability or strength to move", "tag": "lazy_inactive"},
-  {"word": "phlegmatic", "meaning": "having an unemotional and stolidly calm disposition", "tag": "lazy_inactive"},
-  {"word": "quiescent", "meaning": "in a state or period of inactivity or dormancy", "tag": "lazy_inactive"},
-  {"word": "sedentary", "meaning": "tending to spend much time seated; somewhat inactive", "tag": "lazy_inactive"},
-  {"word": "sluggish", "meaning": "slow-moving or inactive", "tag": "lazy_inactive"},
-  {"word": "stagnant", "meaning": "showing no activity; dull and sluggish", "tag": "lazy_inactive"},
-  {"word": "audacious", "meaning": "showing a willingness to take surprisingly bold risks", "tag": "bold_brave"},
-  {"word": "intrepid", "meaning": "fearless; adventurous", "tag": "bold_brave"},
-  {"word": "dauntless", "meaning": "showing fearlessness and determination", "tag": "bold_brave"},
-  {"word": "mettlesome", "meaning": "full of spirit and courage", "tag": "bold_brave"},
-  {"word": "plucky", "meaning": "having or showing determined courage in the face of difficulties", "tag": "bold_brave"},
-  {"word": "gallant", "meaning": "brave; heroic", "tag": "bold_brave"},
-  {"word": "stout", "meaning": "somewhat fat or of heavy build", "tag": "bold_brave"},
-  {"word": "undaunted", "meaning": "not intimidated or discouraged by difficulty, danger, or disappointment", "tag": "bold_brave"},
-  {"word": "valiant", "meaning": "possessing or showing courage or determination", "tag": "bold_brave"},
-  {"word": "craven", "meaning": "contemptibly lacking in courage; cowardly", "tag": "fearful"},
-  {"word": "diffident", "meaning": "modest or shy because of a lack of self-confidence", "tag": "fearful"},
-  {"word": "pusillanimous", "meaning": "showing a lack of courage or determination; timid", "tag": "fearful"},
-  {"word": "timorous", "meaning": "showing or suffering from nervousness, fear, or a lack of confidence", "tag": "fearful"},
-  {"word": "trepidation", "meaning": "a feeling of fear or agitation about something that may happen", "tag": "fearful"},
-  {"word": "erudite", "meaning": "having or showing great knowledge or learning", "tag": "knowledge"},
-  {"word": "perspicacious", "meaning": "having a ready insight into and understanding of things", "tag": "knowledge"},
-  {"word": "sagacious", "meaning": "having or showing keen mental discernment and good judgment", "tag": "knowledge"},
-  {"word": "prescient", "meaning": "having or showing knowledge of events before they take place", "tag": "knowledge"},
-  {"word": "astute", "meaning": "having or showing an ability to accurately assess situations", "tag": "knowledge"},
-  {"word": "connoisseur", "meaning": "an expert judge in matters of taste", "tag": "knowledge"},
-  {"word": "pundit", "meaning": "an expert in a particular subject or field who is frequently called on to give opinions", "tag": "knowledge"},
-  {"word": "savant", "meaning": "a learned person, especially a distinguished scientist", "tag": "knowledge"},
-  {"word": "virtuoso", "meaning": "a person highly skilled in music or another artistic pursuit", "tag": "knowledge"},
-  {"word": "abstruse", "meaning": "difficult to understand; obscure", "tag": "complex"},
-  {"word": "esoteric", "meaning": "intended for or likely to be understood by only a small number of people", "tag": "complex"},
-  {"word": "recondite", "meaning": "little known; abstruse", "tag": "complex"},
-  {"word": "arcane", "meaning": "understood by few; mysterious or secret", "tag": "complex"},
-  {"word": "enigma", "meaning": "a person or thing that is mysterious, puzzling, or difficult to understand", "tag": "complex"},
-  {"word": "ambiguous", "meaning": "open to more than one interpretation; having a double meaning", "tag": "complex"},
-  {"word": "bemusing", "meaning": "puzzle, confuse, or bewilder", "tag": "complex"},
-  {"word": "cryptic", "meaning": "having a meaning that is mysterious or obscure", "tag": "complex"},
-  {"word": "inscrutable", "meaning": "impossible to understand or interpret", "tag": "complex"},
-  {"word": "obscure", "meaning": "not discovered or known about; uncertain", "tag": "complex"},
-  {"word": "opaque", "meaning": "not able to be seen through; not transparent", "tag": "complex"},
-  {"word": "paradoxical", "meaning": "seemingly absurd or self-contradictory", "tag": "complex"},
-  {"word": "perplexing", "meaning": "completely baffling; very puzzling", "tag": "complex"},
-  {"word": "turbid", "meaning": "(of a liquid) cloudy, opaque, or thick with suspended matter", "tag": "complex"},
-  {"word": "articulate", "meaning": "having or showing the ability to speak fluently and coherently", "tag": "simple_clear"},
-  {"word": "cogent", "meaning": "(of an argument or case) clear, logical, and convincing", "tag": "simple_clear"},
-  {"word": "eloquent", "meaning": "fluent or persuasive in speaking or writing", "tag": "simple_clear"},
-  {"word": "evident", "meaning": "plain or obvious; clearly seen or understood", "tag": "simple_clear"},
-  {"word": "limpid", "meaning": "free of anything that darkens; completely clear", "tag": "simple_clear"},
-  {"word": "lucid", "meaning": "expressed clearly; easy to understand", "tag": "simple_clear"},
-  {"word": "pellucid", "meaning": "translucently clear", "tag": "simple_clear"},
-  {"word": "capricious", "meaning": "given to sudden and unaccountable changes of mood or behavior", "tag": "changing"},
-  {"word": "mercurial", "meaning": "subject to sudden or unpredictable changes of mood or mind", "tag": "changing"},
-  {"word": "volatile", "meaning": "liable to change rapidly and unpredictably, especially for the worse", "tag": "changing"},
-  {"word": "vacillate", "meaning": "alternate or waver between different opinions or actions", "tag": "changing"},
-  {"word": "fluctuate", "meaning": "rise and fall irregularly in number or amount", "tag": "changing"},
-  {"word": "fickle", "meaning": "changing frequently, especially as regards one's loyalties, interests, or affection", "tag": "changing"},
-  {"word": "inconstant", "meaning": "frequently changing; variable or irregular", "tag": "changing"},
-  {"word": "temperamental", "meaning": "liable to unreasonable changes of mood", "tag": "changing"},
-  {"word": "whimsical", "meaning": "playfully quaint or fanciful, especially in an appealing and amusing way", "tag": "changing"},
-  {"word": "concord", "meaning": "agreement or harmony between people or groups", "tag": "harmony"},
-  {"word": "consonance", "meaning": "agreement or compatibility between opinions or actions", "tag": "harmony"},
-  {"word": "rapport", "meaning": "a close and harmonious relationship", "tag": "harmony"},
-  {"word": "coalesce", "meaning": "come together to form one mass or whole", "tag": "harmony"},
-  {"word": "unanimity", "meaning": "agreement by all people involved; consensus", "tag": "harmony"},
-  {"word": "affable", "meaning": "friendly, good-natured, or easy to talk to", "tag": "harmony"},
-  {"word": "amiable", "meaning": "having or displaying a friendly and pleasant manner", "tag": "harmony"},
-  {"word": "amicable", "meaning": "(of relations between people) having a spirit of friendliness", "tag": "harmony"},
-  {"word": "comity", "meaning": "courtesy and considerate behavior toward others", "tag": "harmony"},
-  {"word": "congenial", "meaning": "(of a person) pleasant because of a personality, qualities, or interests that are similar to one's own", "tag": "harmony"},
-  {"word": "convivial", "meaning": "(of an atmosphere or event) friendly, lively, and enjoyable", "tag": "harmony"},
-  {"word": "gregarious", "meaning": "(of a person) fond of company; sociable", "tag": "harmony"},
-  {"word": "jocular", "meaning": "fond of or characterized by joking; humorous or playful", "tag": "harmony"},
-  {"word": "levity", "meaning": "humor or frivolity, especially the treatment of a serious matter with humor or in a manner lacking due respect", "tag": "harmony"},
-  {"word": "contentious", "meaning": "causing or likely to cause an argument; controversial", "tag": "hostility"},
-  {"word": "pugnacious", "meaning": "eager or quick to argue, quarrel, or fight", "tag": "hostility"},
-  {"word": "belligerent", "meaning": "hostile and aggressive", "tag": "hostility"},
-  {"word": "truculent", "meaning": "eager or quick to argue or fight; aggressively defiant", "tag": "hostility"},
-  {"word": "inimical", "meaning": "tending to obstruct or harm", "tag": "hostility"},
-  {"word": "acerbic", "meaning": "(especially of a comment or style of speaking) sharp and forthright", "tag": "hostility"},
-  {"word": "acrimonious", "meaning": "(typically of speech or a debate) angry and bitter", "tag": "hostility"},
-  {"word": "animosity", "meaning": "strong hostility", "tag": "hostility"},
-  {"word": "antipathy", "meaning": "a deep-seated feeling of dislike; aversion", "tag": "hostility"},
-  {"word": "bellicose", "meaning": "demonstrating aggression and willingness to fight", "tag": "hostility"},
-  {"word": "caustic", "meaning": "able to burn or corrode organic tissue by chemical action", "tag": "hostility"},
-  {"word": "deleterious", "meaning": "causing harm or damage", "tag": "hostility"},
-  {"word": "detrimental", "meaning": "tending to cause harm", "tag": "hostility"},
-  {"word": "malevolent", "meaning": "having or showing a wish to do evil to others", "tag": "hostility"},
-  {"word": "malicious", "meaning": "intending or intended to do harm", "tag": "hostility"},
-  {"word": "malign", "meaning": "evil in nature or effect; malevolent", "tag": "hostility"},
-  {"word": "nefarious", "meaning": "(typically of an action or activity) wicked or criminal", "tag": "hostility"},
-  {"word": "odious", "meaning": "extremely unpleasant; repulsive", "tag": "hostility"},
-  {"word": "pernicious", "meaning": "having a harmful effect, especially in a gradual or subtle way", "tag": "hostility"},
-  {"word": "rancorous", "meaning": "characterized by bitterness or resentment", "tag": "hostility"},
-  {"word": "virulent", "meaning": "(of a disease or poison) extremely severe or harmful in its effects", "tag": "hostility"},
-  {"word": "indigent", "meaning": "poor; needy", "tag": "poverty"},
-  {"word": "penury", "meaning": "extreme poverty; destitution", "tag": "poverty"},
-  {"word": "destitute", "meaning": "without the basic necessities of life", "tag": "poverty"},
-  {"word": "impecunious", "meaning": "having little or no money", "tag": "poverty"},
-  {"word": "paucity", "meaning": "the presence of something only in small or insufficient quantities", "tag": "poverty"},
-  {"word": "impoverished", "meaning": "make (a person or area) poor", "tag": "poverty"},
-  {"word": "avarice", "meaning": "extreme greed for wealth or material gain", "tag": "greed_money"},
-  {"word": "cupidity", "meaning": "greed for money or possessions", "tag": "greed_money"},
-  {"word": "parsimonious", "meaning": "unwilling to spend money or use resources; stingy", "tag": "greed_money"},
-  {"word": "miserly", "meaning": "of or characteristic of a miser", "tag": "greed_money"},
-  {"word": "frugal", "meaning": "sparing or economical with regard to money or food", "tag": "greed_money"},
-  {"word": "covetous", "meaning": "having or showing a great desire to possess something, typically something belonging to someone else", "tag": "greed_money"},
-  {"word": "mercenary", "meaning": "(of a person or their behavior) primarily concerned with making money at the expense of ethics", "tag": "greed_money"},
-  {"word": "rapacious", "meaning": "aggressively greedy or grasping", "tag": "greed_money"},
-  {"word": "venal", "meaning": "showing or motivated by susceptibility to bribery", "tag": "greed_money"},
-  {"word": "altruistic", "meaning": "showing a disinterested and selfless concern for the well-being of others; unselfish", "tag": "generosity"},
-  {"word": "beneficent", "meaning": "(of a person) generous or doing good", "tag": "generosity"},
-  {"word": "benevolent", "meaning": "well meaning and kindly", "tag": "generosity"},
-  {"word": "largess", "meaning": "generosity in bestowing money or gifts upon others", "tag": "generosity"},
-  {"word": "magnanimous", "meaning": "generous or forgiving, especially toward a rival or less powerful person", "tag": "generosity"},
-  {"word": "munificent", "meaning": "(of a gift or sum of money) larger or more generous than is usual or necessary", "tag": "generosity"},
-  {"word": "philanthropic", "meaning": "(of a person or organization) seeking to promote the welfare of others", "tag": "generosity"},
-  {"word": "unstinting", "meaning": "given or giving without restraint; unsparing", "tag": "generosity"},
-  {"word": "neophyte", "meaning": "a person who is new to a subject, skill, or belief", "tag": "beginner"},
-  {"word": "tyro", "meaning": "a beginner or novice", "tag": "beginner"},
-  {"word": "dilettante", "meaning": "a person who cultivates an area of interest without real commitment", "tag": "beginner"},
-  {"word": "novice", "meaning": "a person new to or inexperienced in a field or situation", "tag": "beginner"},
-  {"word": "fledgling", "meaning": "a person or organization that is immature, inexperienced, or underdeveloped", "tag": "beginner"},
-  {"word": "amateur", "meaning": "a person who engages in a pursuit, especially a sport, on an unpaid basis", "tag": "beginner"},
-  {"word": "callow", "meaning": "(especially of a young person) inexperienced and immature", "tag": "beginner"},
-  {"word": "inchoate", "meaning": "just begun and so not fully formed or developed; rudimentary", "tag": "beginner"},
-  {"word": "incipient", "meaning": "in an initial stage; beginning to happen or develop", "tag": "beginner"},
-  {"word": "naive", "meaning": "(of a person or action) showing a lack of experience, wisdom, or judgment", "tag": "beginner"},
-  {"word": "nascent", "meaning": "(especially of a process or organization) just coming into existence and beginning to display signs of future potential", "tag": "beginner"},
-  {"word": "abate", "meaning": "(of something perceived as hostile, threatening, or negative) become less intense or widespread", "tag": "weaken"},
-  {"word": "attenuate", "meaning": "reduce the force, effect, or value of", "tag": "weaken"},
-  {"word": "debilitate", "meaning": "make (someone) weak and infirm", "tag": "weaken"},
-  {"word": "enervate", "meaning": "cause (someone) to feel drained of energy or vitality; weaken", "tag": "weaken"},
-  {"word": "enfeeble", "meaning": "make weak or feeble", "tag": "weaken"},
-  {"word": "sap", "meaning": "gradually weaken or destroy (a person's strength or power)", "tag": "weaken"},
-  {"word": "undermine", "meaning": "damage or weaken (someone or something), especially gradually or insidiously", "tag": "weaken"},
-  {"word": "vitiate", "meaning": "spoil or impair the quality or efficiency of", "tag": "weaken"},
-  {"word": "bolster", "meaning": "support or strengthen; prop up", "tag": "strengthen"},
-  {"word": "burgeon", "meaning": "begin to grow or increase rapidly; flourish", "tag": "strengthen"},
-  {"word": "corroborate", "meaning": "confirm or give support to (a statement, theory, or finding)", "tag": "strengthen"},
-  {"word": "fortify", "meaning": "strengthen (a place) with defensive works so as to protect it against attack", "tag": "strengthen"},
-  {"word": "galvanize", "meaning": "shock or excite (someone), typically into taking action", "tag": "strengthen"},
-  {"word": "invigorate", "meaning": "give strength or energy to", "tag": "strengthen"},
-  {"word": "reinforce", "meaning": "strengthen or support, especially with additional personnel or material", "tag": "strengthen"},
-  {"word": "substantiate", "meaning": "provide evidence to support or prove the truth of", "tag": "strengthen"},
-  {"word": "abscond", "meaning": "leave hurriedly and secretly, typically to avoid detection of or arrest for an unlawful action such as theft", "tag": "secret_hidden"},
-  {"word": "clandestine", "meaning": "kept secret or done secretively, especially because illicit", "tag": "secret_hidden"},
-  {"word": "covert", "meaning": "not openly acknowledged or displayed", "tag": "secret_hidden"},
-  {"word": "furtive", "meaning": "attempting to avoid notice or attention, typically because of guilt or a belief that discovery would lead to trouble", "tag": "secret_hidden"},
-  {"word": "incognito", "meaning": "(of a person) having one's true identity concealed", "tag": "secret_hidden"},
-  {"word": "skulk", "meaning": "keep out of sight, typically with a sinister or cowardly motive", "tag": "secret_hidden"},
-  {"word": "surreptitious", "meaning": "kept secret, especially because it would not be approved of", "tag": "secret_hidden"},
-  {"word": "ambulatory", "meaning": "relating to or adapted for walking", "tag": "wandering"},
-  {"word": "discursive", "meaning": "digressing from subject to subject", "tag": "wandering"},
-  {"word": "itinerant", "meaning": "traveling from place to place", "tag": "wandering"},
-  {"word": "meander", "meaning": "(of a river or road) follow a winding course", "tag": "wandering"},
-  {"word": "nomad", "meaning": "a member of a people having no permanent abode, and who travel from place to place to find fresh pasture for their livestock", "tag": "wandering"},
-  {"word": "peripatetic", "meaning": "traveling from place to place, especially working or based in various places for relatively short periods", "tag": "wandering"},
-  {"word": "sojourn", "meaning": "a temporary stay", "tag": "wandering"},
-  {"word": "vagrant", "meaning": "a person without a settled home or regular work who wanders from place to place and lives by begging", "tag": "wandering"},
-  {"word": "banal", "meaning": "so lacking in originality as to be obvious and boring", "tag": "boring_common"},
-  {"word": "cliché", "meaning": "a phrase or opinion that is overused and betrays a lack of original thought", "tag": "boring_common"},
-  {"word": "derivative", "meaning": "(typically of an artist or work of art) imitative of the work of another person, and usually disapproved of for that reason", "tag": "boring_common"},
-  {"word": "hackneyed", "meaning": "(of a phrase or idea) lacking significance through having been overused", "tag": "boring_common"},
-  {"word": "insipid", "meaning": "lacking flavor", "tag": "boring_common"},
-  {"word": "mundane", "meaning": "lacking interest or excitement; dull", "tag": "boring_common"},
-  {"word": "pedestrian", "meaning": "lacking inspiration or excitement; dull", "tag": "boring_common"},
-  {"word": "platitude", "meaning": "a remark or statement, especially one with a moral content, that has been used too often to be interesting or thoughtful", "tag": "boring_common"},
-  {"word": "prosaic", "meaning": "having the style or diction of prose; lacking poetic beauty", "tag": "boring_common"},
-  {"word": "quotidian", "meaning": "of or occurring every day; daily", "tag": "boring_common"},
-  {"word": "trite", "meaning": "(of a remark, opinion, or idea) overused and consequently of little import; lacking originality or freshness", "tag": "boring_common"},
-  {"word": "vapid", "meaning": "offering nothing that is stimulating or challenging", "tag": "boring_common"},
-  {"word": "ebullient", "meaning": "cheerful and full of energy", "tag": "emotion_happy"},
-  {"word": "exuberant", "meaning": "filled with or characterized by a lively energy and excitement", "tag": "emotion_happy"},
-  {"word": "jovial", "meaning": "cheerful and friendly", "tag": "emotion_happy"},
-  {"word": "sanguine", "meaning": "optimistic or positive, especially in an apparently bad situation", "tag": "emotion_happy"},
-  {"word": "mirth", "meaning": "amusement, especially as expressed in laughter", "tag": "emotion_happy"},
-  {"word": "buoyant", "meaning": "cheerful and optimistic", "tag": "emotion_happy"},
-  {"word": "vivacious", "meaning": "(especially of a woman) attractively lively and animated", "tag": "emotion_happy"},
-  {"word": "elated", "meaning": "make (someone) ecstatically happy", "tag": "emotion_happy"},
-  {"word": "exult", "meaning": "show or feel elation or jubilation, especially as the result of a success", "tag": "emotion_happy"},
-  {"word": "jubilant", "meaning": "feeling or expressing great happiness and triumph", "tag": "emotion_happy"},
-  {"word": "morose", "meaning": "sullen and ill-tempered", "tag": "emotion_sad"},
-  {"word": "lugubrious", "meaning": "looking or sounding sad and dismal", "tag": "emotion_sad"},
-  {"word": "doleful", "meaning": "expressing sorrow; mournful", "tag": "emotion_sad"},
-  {"word": "dolorous", "meaning": "feeling or expressing great sorrow or distress", "tag": "emotion_sad"},
-  {"word": "saturnine", "meaning": "(of a person or their manner) slow and gloomy", "tag": "emotion_sad"},
-  {"word": "despondent", "meaning": "in low spirits from loss of hope or courage", "tag": "emotion_sad"},
-  {"word": "forlorn", "meaning": "pitifully sad and abandoned or lonely", "tag": "emotion_sad"},
-  {"word": "lachrymose", "meaning": "tearful or given to weeping", "tag": "emotion_sad"},
-  {"word": "melancholy", "meaning": "a feeling of pensive sadness, typically with no obvious cause", "tag": "emotion_sad"},
-  {"word": "sepulchral", "meaning": "gloomy; dismal (literally relating to a tomb)", "tag": "emotion_sad"},
-  {"word": "irascible", "meaning": "having or showing a tendency to be easily angered", "tag": "emotion_angry"},
-  {"word": "petulant", "meaning": "(of a person or their manner) childishly sulky or bad-tempered", "tag": "emotion_angry"},
-  {"word": "peevish", "meaning": "easily irritated, especially by unimportant things", "tag": "emotion_angry"},
-  {"word": "cantankerous", "meaning": "bad-tempered, argumentative, and uncooperative", "tag": "emotion_angry"},
-  {"word": "choleric", "meaning": "bad-tempered or irritable", "tag": "emotion_angry"},
-  {"word": "bilious", "meaning": "spiteful; bad-tempered", "tag": "emotion_angry"},
-  {"word": "fractious", "meaning": "(typically of children) irritable and quarrelsome", "tag": "emotion_angry"},
-  {"word": "splenetic", "meaning": "bad-tempered; spiteful", "tag": "emotion_angry"},
-  {"word": "waspish", "meaning": "readily expressing anger or irritation", "tag": "emotion_angry"},
-  {"word": "indignant", "meaning": "feeling or showing anger or annoyance at what is perceived as unfair treatment", "tag": "emotion_angry"},
-  {"word": "sedulous", "meaning": "(of a person or action) showing dedication and diligence", "tag": "hard_work"},
-  {"word": "assiduous", "meaning": "showing great care and perseverance", "tag": "hard_work"},
-  {"word": "diligent", "meaning": "having or showing care and conscientiousness in one's work", "tag": "hard_work"},
-  {"word": "indefatigable", "meaning": "(of a person or their efforts) persisting tirelessly", "tag": "hard_work"},
-  {"word": "painstaking", "meaning": "done with or employing great care and thoroughness", "tag": "hard_work"},
-  {"word": "meticulous", "meaning": "showing great attention to detail; very careful and precise", "tag": "hard_work"},
-  {"word": "scrupulous", "meaning": "(of a person or process) diligent, thorough, and extremely attentive to details", "tag": "hard_work"},
-  {"word": "punctilious", "meaning": "showing great attention to detail or correct behavior", "tag": "hard_work"},
-  {"word": "exacting", "meaning": "making great demands on one's skill, attention, or other resources", "tag": "hard_work"},
-  {"word": "arduous", "meaning": "involving or requiring strenuous effort; difficult and tiring", "tag": "hard_work"},
-  {"word": "adroit", "meaning": "clever or skillful in using the hands or mind", "tag": "skill"},
-  {"word": "dexterous", "meaning": "showing or having skill, especially with the hands", "tag": "skill"},
-  {"word": "adept", "meaning": "very skilled or proficient at something", "tag": "skill"},
-  {"word": "consummate", "meaning": "showing a high degree of skill and flair; complete or perfect", "tag": "skill"},
-  {"word": "deft", "meaning": "neatly skillful and quick in one's movements", "tag": "skill"},
-  {"word": "inept", "meaning": "having or showing no skill; clumsy", "tag": "skill_lack"},
-  {"word": "maladroit", "meaning": "ineffective or bungling; clumsy", "tag": "skill_lack"},
-  {"word": "gauche", "meaning": "lacking ease or grace; unsophisticated and socially awkward", "tag": "skill_lack"},
-  {"word": "ungainly", "meaning": "(of a person or movement) awkward; clumsy", "tag": "skill_lack"},
-  {"word": "fumble", "meaning": "use the hands clumsily while doing or handling something", "tag": "skill_lack"},
-  {"word": "salubrious", "meaning": "health-giving; healthy", "tag": "healthy_good"},
-  {"word": "salutary", "meaning": "(especially with reference to something unwelcome or unpleasant) producing good effects; beneficial", "tag": "healthy_good"},
-  {"word": "benign", "meaning": "gentle and kindly; (of a disease) not harmful", "tag": "healthy_good"},
-  {"word": "innocuous", "meaning": "not harmful or offensive", "tag": "healthy_good"},
-  {"word": "remedial", "meaning": "giving or intended as a remedy or cure", "tag": "healthy_good"},
-  {"word": "noxious", "meaning": "harmful, poisonous, or very unpleasant", "tag": "harmful_bad"},
-  {"word": "baleful", "meaning": "threatening harm; menacing", "tag": "harmful_bad"},
-  {"word": "baneful", "meaning": "harmful or destructive", "tag": "harmful_bad"},
-  {"word": "pestilential", "meaning": "harmful or destructive to crops or livestock", "tag": "harmful_bad"},
-  {"word": "insidious", "meaning": "proceeding in a gradual, subtle way, but with harmful effects", "tag": "harmful_bad"},
-  {"word": "minatory", "meaning": "expressing or conveying a threat", "tag": "harmful_bad"},
-  {"word": "sinister", "meaning": "giving the impression that something harmful or evil is happening or will happen", "tag": "harmful_bad"},
-  {"word": "stymie", "meaning": "prevent or hinder the progress of", "tag": "hinder_stop"},
-  {"word": "thwart", "meaning": "prevent (someone) from accomplishing something", "tag": "hinder_stop"},
-  {"word": "impede", "meaning": "delay or prevent (someone or something) by obstructing them", "tag": "hinder_stop"},
-  {"word": "hamper", "meaning": "hinder or impede the movement or progress of", "tag": "hinder_stop"},
-  {"word": "encumber", "meaning": "restrict or burden (someone or something) in such a way that free action or movement is difficult", "tag": "hinder_stop"},
-  {"word": "fetter", "meaning": "restrain with chains or manacles, typically around the ankles", "tag": "hinder_stop"},
-  {"word": "shackle", "meaning": "limit; restrain", "tag": "hinder_stop"},
-  {"word": "inhibit", "meaning": "hinder, restrain, or prevent (an action or process)", "tag": "hinder_stop"},
-  {"word": "occlude", "meaning": "stop, close up, or obstruct (an opening, orifice, or passage)", "tag": "hinder_stop"},
-  {"word": "iconoclast", "meaning": "a person who attacks cherished beliefs or institutions", "tag": "religion_beliefs"},
-  {"word": "heretic", "meaning": "a person holding an opinion at odds with what is generally accepted", "tag": "religion_beliefs"},
-  {"word": "maverick", "meaning": "an orthodox or independent-minded person", "tag": "religion_beliefs"},
-  {"word": "heterodox", "meaning": "not conforming with accepted or orthodox standards or beliefs", "tag": "religion_beliefs"},
-  {"word": "apostate", "meaning": "a person who renounces a religious or political belief or principle", "tag": "religion_beliefs"},
-  {"word": "sanctimonious", "meaning": "making a show of being morally superior to other people", "tag": "religion_beliefs"},
-  {"word": "piety", "meaning": "the quality of being religious or reverent", "tag": "religion_beliefs"},
-  {"word": "sacrosanct", "meaning": "(especially of a principle, place, or routine) regarded as too important or valuable to be interfered with", "tag": "religion_beliefs"},
-  {"word": "profane", "meaning": "relating or devoted to that which is not sacred or biblical; secular", "tag": "religion_beliefs"},
-  {"word": "dogma", "meaning": "a principle or set of principles laid down by an authority as incontrovertibly true", "tag": "religion_beliefs"},
-  {"word": "empirical", "meaning": "based on, concerned with, or verifiable by observation or experience rather than theory or pure logic", "tag": "logic_science"},
-  {"word": "axiomatic", "meaning": "self-evident or unquestionable", "tag": "logic_science"},
-  {"word": "postulate", "meaning": "suggest or assume the existence, fact, or truth of (something) as a basis for reasoning", "tag": "logic_science"},
-  {"word": "deduce", "meaning": "arrive at (a fact or a conclusion) by reasoning; draw as a logical conclusion", "tag": "logic_science"},
-  {"word": "infer", "meaning": "deduce or conclude (information) from evidence and reasoning rather than from explicit statements", "tag": "logic_science"},
-  {"word": "theoretical", "meaning": "concerned with or involving the theory of a subject or area of study rather than its practical application", "tag": "logic_science"},
-  {"word": "pragmatic", "meaning": "dealing with things sensibly and realistically in a way that is based on practical rather than theoretical considerations", "tag": "logic_science"},
-  {"word": "conjecture", "meaning": "an opinion or conclusion formed on the basis of incomplete information", "tag": "logic_science"},
-  {"word": "hypothetical", "meaning": "of, based on, or serving as a hypothesis", "tag": "logic_science"},
-  {"word": "specious", "meaning": "superficially plausible, but actually wrong", "tag": "logic_science"},
-  {"word": "anachronism", "meaning": "a thing belonging or appropriate to a period other than that in which it exists", "tag": "time_history"},
-  {"word": "antecedent", "meaning": "a thing or event that existed before or logically precedes another", "tag": "time_history"},
-  {"word": "archaic", "meaning": "very old or old-fashioned", "tag": "time_history"},
-  {"word": "antediluvian", "meaning": "of or belonging to the time before the biblical Flood; ridiculously old-fashioned", "tag": "time_history"},
-  {"word": "primeval", "meaning": "of or resembling the earliest ages in the history of the world", "tag": "time_history"},
-  {"word": "pristine", "meaning": "in its original condition; unspoiled", "tag": "time_history"},
-  {"word": "perennial", "meaning": "lasting or existing for a long or apparently infinite time", "tag": "time_history"},
-  {"word": "chronological", "meaning": "(of a record of events) starting with the earliest and following the order in which they occurred", "tag": "time_history"},
-  {"word": "synchronous", "meaning": "existing or occurring at the same time", "tag": "time_history"},
-  {"word": "temporal", "meaning": "relating to time", "tag": "time_history"},
-  {"word": "harbinger", "meaning": "a person or thing that announces or signals the approach of another", "tag": "future_prediction"},
-  {"word": "augury", "meaning": "a sign of what will happen in the future; an omen", "tag": "future_prediction"},
-  {"word": "portent", "meaning": "a sign or warning that something, especially something momentous or calamitous, is likely to happen", "tag": "future_prediction"},
-  {"word": "presage", "meaning": "(of an event) be a sign or warning that (something, typically something bad) will happen", "tag": "future_prediction"},
-  {"word": "prophetic", "meaning": "accurately describing or predicting what will happen in the future", "tag": "future_prediction"},
-  {"word": "prognosticate", "meaning": "foretell or prophesy (an event in the future)", "tag": "future_prediction"},
-  {"word": "hegemony", "meaning": "leadership or dominance, especially by one country or social group over others", "tag": "power_gov"},
-  {"word": "despot", "meaning": "a ruler or other person who holds absolute power, typically one who exercises it in a cruel or oppressive way", "tag": "power_gov"},
-  {"word": "autocrat", "meaning": "a ruler who has absolute power", "tag": "power_gov"},
-  {"word": "tyrant", "meaning": "a cruel and oppressive ruler", "tag": "power_gov"},
-  {"word": "imperious", "meaning": "assuming power or authority without justification; arrogant and domineering", "tag": "power_gov"},
-  {"word": "peremptory", "meaning": "(especially of a person's manner or actions) insisting on immediate attention or obedience", "tag": "power_gov"},
-  {"word": "subjugate", "meaning": "bring under domination or control, especially by conquest", "tag": "power_gov"},
-  {"word": "usurp", "meaning": "take (a position of power or importance) illegally or by force", "tag": "power_gov"},
-  {"word": "draconian", "meaning": "(of laws or their application) excessively harsh and severe", "tag": "power_gov"},
-  {"word": "oppressive", "meaning": "unjustly inflicting hardship and constraint", "tag": "power_gov"},
-  {"word": "demagogue", "meaning": "a political leader who seeks support by appealing to the desires and prejudices of ordinary people rather than by using rational argument", "tag": "power_gov"},
-  {"word": "plethora", "meaning": "a large or excessive amount of (something)", "tag": "quantity"},
-  {"word": "myriad", "meaning": "a countless or extremely great number", "tag": "quantity"},
-  {"word": "surfeit", "meaning": "an excessive amount of something", "tag": "quantity"},
-  {"word": "copious", "meaning": "abundant in supply or quantity", "tag": "quantity"},
-  {"word": "profuse", "meaning": "(especially of something offered or discharged) exuberantly plentiful; abundant", "tag": "quantity"},
-  {"word": "scant", "meaning": "barely sufficient or adequate", "tag": "quantity"},
-  {"word": "modicum", "meaning": "a small quantity of a particular thing, especially something considered desirable or valuable", "tag": "quantity"},
-  {"word": "iota", "meaning": "an extremely small amount", "tag": "quantity"},
-  {"word": "vestige", "meaning": "a trace of something that is disappearing or no longer exists", "tag": "quantity"},
-  {"word": "dearth", "meaning": "a scarcity or lack of something", "tag": "quantity"},
-  {"word": "glut", "meaning": "an excessively abundant supply of something", "tag": "quantity"},
-  {"word": "alacrity", "meaning": "brisk and cheerful readiness", "tag": "emotion_misc"},
-  {"word": "apathy", "meaning": "lack of interest, enthusiasm, or concern", "tag": "emotion_misc"},
-  {"word": "antipathy", "meaning": "a deep-seated feeling of dislike; aversion", "tag": "emotion_misc"},
-  {"word": "empathy", "meaning": "the ability to understand and share the feelings of another", "tag": "emotion_misc"},
-  {"word": "ennui", "meaning": "a feeling of listlessness and dissatisfaction arising from a lack of occupation or excitement", "tag": "emotion_misc"},
-  {"word": "chagrin", "meaning": "distress or embarrassment at having failed or been humiliated", "tag": "emotion_misc"},
-  {"word": "compunction", "meaning": "a feeling of guilt or moral scruple that follows the doing of something bad", "tag": "emotion_misc"},
-  {"word": "contrition", "meaning": "the state of feeling remorseful and penitent", "tag": "emotion_misc"},
-  {"word": "penitent", "meaning": "feeling or showing sorrow and regret for having done wrong; repentant", "tag": "emotion_misc"},
-  {"word": "remorse", "meaning": "deep regret or guilt for a wrong committed", "tag": "emotion_misc"},
-  {"word": "flummox", "meaning": "perplex (someone) greatly; bewilder", "tag": "confusion"},
-  {"word": "nonplussed", "meaning": "(of a person) surprised and confused so much that they are unsure how to react", "tag": "confusion"},
-  {"word": "discombobulate", "meaning": "disconcert or confuse (someone)", "tag": "confusion"},
-  {"word": "confound", "meaning": "cause surprise or confusion in (someone), especially by acting against their expectations", "tag": "confusion"},
-  {"word": "baffle", "meaning": "totally bewilder or perplex", "tag": "confusion"},
-  {"word": "amalgamate", "meaning": "combine or unite to form one organization or structure", "tag": "mix_combine"},
-  {"word": "compound", "meaning": "make up (a composite whole); constitute", "tag": "mix_combine"},
-  {"word": "consolidate", "meaning": "make (something) physically stronger or more solid; combine into a single more effective whole", "tag": "mix_combine"},
-  {"word": "eclectic", "meaning": "deriving ideas, style, or taste from a broad and diverse range of sources", "tag": "mix_combine"},
-  {"word": "synthesis", "meaning": "combination or composition, in particular", "tag": "mix_combine"},
-  {"word": "heterogeneous", "meaning": "diverse in character or content", "tag": "mix_combine"},
-  {"word": "homogeneous", "meaning": "of the same kind; alike", "tag": "mix_combine"},
-  {"word": "multifarious", "meaning": "many and of various types", "tag": "mix_combine"},
-  {"word": "sundry", "meaning": "of various kinds; several", "tag": "mix_combine"},
-  {"word": "motley", "meaning": "incongruously varied in appearance or character; disparate", "tag": "mix_combine"},
-  {"word": "catalyst", "meaning": "a person or thing that precipitates an event", "tag": "science_metaphor"},
-  {"word": "inertia", "meaning": "a tendency to do nothing or to remain unchanged", "tag": "science_metaphor"},
-  {"word": "kinetic", "meaning": "relating to or resulting from motion", "tag": "science_metaphor"},
-  {"word": "osmosis", "meaning": "the process of gradual or unconscious assimilation of ideas, knowledge, etc.", "tag": "science_metaphor"},
-  {"word": "symbiosis", "meaning": "interaction between two different organisms living in close physical association, typically to the advantage of both", "tag": "science_metaphor"},
-  {"word": "viscous", "meaning": "having a thick, sticky consistency between solid and liquid", "tag": "science_metaphor"},
-  {"word": "caustic", "meaning": "able to burn or corrode organic tissue by chemical action; sarcastic in a scathing and bitter way", "tag": "science_metaphor"},
-  {"word": "desiccate", "meaning": "remove the moisture from (something), typically in order to preserve it", "tag": "science_metaphor"},
-  {"word": "permeate", "meaning": "spread throughout (something); pervade", "tag": "science_metaphor"},
-  {"word": "pervasive", "meaning": "(especially of an unwelcome influence or physical effect) spreading widely throughout an area or a group of people", "tag": "science_metaphor"},
-  {"word": "ubiquitous", "meaning": "present, appearing, or found everywhere", "tag": "science_metaphor"},
-  {"word": "cacophony", "meaning": "a harsh, discordant mixture of sounds", "tag": "sound"},
-  {"word": "din", "meaning": "a loud, unpleasant, and prolonged noise", "tag": "sound"},
-  {"word": "dissonance", "meaning": "lack of harmony among musical notes", "tag": "sound"},
-  {"word": "raucous", "meaning": "making or constituting a disturbingly harsh and loud noise", "tag": "sound"},
-  {"word": "strident", "meaning": "loud and harsh; grating", "tag": "sound"},
-  {"word": "vociferous", "meaning": "(especially of a person or speech) vehement or clamorous", "tag": "sound"},
-  {"word": "stentorian", "meaning": "(of a person's voice) loud and powerful", "tag": "sound"},
-  {"word": "euphony", "meaning": "the quality of being pleasing to the ear", "tag": "sound"},
-  {"word": "mellifluous", "meaning": "(of a voice or words) sweet or musical; pleasant to hear", "tag": "sound"},
-  {"word": "dulcet", "meaning": "(especially of sound) sweet and soothing", "tag": "sound"},
-  {"word": "luminous", "meaning": "full of or shedding light; bright or shining", "tag": "light_dark"},
-  {"word": "incandescent", "meaning": "emitting light as a result of being heated; passionate", "tag": "light_dark"},
-  {"word": "scintillating", "meaning": "sparkling or shining brightly", "tag": "light_dark"},
-  {"word": "lustrous", "meaning": "having luster; shining", "tag": "light_dark"},
-  {"word": "radiant", "meaning": "sending out light; shining or glowing brightly", "tag": "light_dark"},
-  {"word": "murky", "meaning": "dark and gloomy, especially due to thick mist", "tag": "light_dark"},
-  {"word": "nebulous", "meaning": "in the form of a cloud or haze; hazy", "tag": "light_dark"},
-  {"word": "crepuscular", "meaning": "of, resembling, or relating to twilight", "tag": "light_dark"},
-  {"word": "gloaming", "meaning": "twilight; dusk", "tag": "light_dark"},
-  {"word": "umbrage", "meaning": "offense or annoyance (also: shade or shadow)", "tag": "light_dark"},
-  {"word": "pecuniary", "meaning": "relating to or consisting of money", "tag": "money_business"},
-  {"word": "fiscal", "meaning": "relating to government revenue, especially taxes", "tag": "money_business"},
-  {"word": "solvent", "meaning": "having assets in excess of liabilities; able to pay one's debts", "tag": "money_business"},
-  {"word": "insolvent", "meaning": "unable to pay debts owed", "tag": "money_business"},
-  {"word": "remuneration", "meaning": "money paid for work or a service", "tag": "money_business"},
-  {"word": "restitution", "meaning": "the restoration of something lost or stolen to its proper owner", "tag": "money_business"},
-  {"word": "usury", "meaning": "the illegal action or practice of lending money at unreasonably high rates of interest", "tag": "money_business"},
-  {"word": "embezzle", "meaning": "steal or misappropriate (money placed in one's trust)", "tag": "money_business"},
-  {"word": "stipend", "meaning": "a fixed regular sum paid as a salary or allowance", "tag": "money_business"},
-  {"word": "opulent", "meaning": "ostentatiously rich and luxurious or lavish", "tag": "money_business"},
-  {"word": "culpable", "meaning": "deserving blame", "tag": "legal_crime"},
-  {"word": "exonerate", "meaning": "(especially of an official body) absolve (someone) from blame for a fault or wrongdoing", "tag": "legal_crime"},
-  {"word": "exculpate", "meaning": "show or declare that (someone) is not guilty of wrongdoing", "tag": "legal_crime"},
-  {"word": "indict", "meaning": "formally accuse of or charge with a serious crime", "tag": "legal_crime"},
-  {"word": "litigious", "meaning": "concerned with lawsuits or litigation", "tag": "legal_crime"},
-  {"word": "vindicate", "meaning": "clear (someone) of blame or suspicion", "tag": "legal_crime"},
-  {"word": "perjury", "meaning": "the offense of willfully telling an untruth in a court after having taken an oath", "tag": "legal_crime"},
-  {"word": "jurisprudence", "meaning": "the theory or philosophy of law", "tag": "legal_crime"},
-  {"word": "punitive", "meaning": "inflicting or intended as punishment", "tag": "legal_crime"},
-  {"word": "subpoena", "meaning": "a writ ordering a person to attend a court", "tag": "legal_crime"},
-  {"word": "aesthetic", "meaning": "concerned with beauty or the appreciation of beauty", "tag": "art_beauty"},
-  {"word": "baroque", "meaning": "highly ornate and extravagant in style", "tag": "art_beauty"},
-  {"word": "florid", "meaning": "having a red or flushed complexion; elaborately or excessively intricate", "tag": "art_beauty"},
-  {"word": "rococo", "meaning": "characterised by an elaborately ornamental late baroque style of decoration", "tag": "art_beauty"},
-  {"word": "ornate", "meaning": "made in an intricate shape or decorated with complex patterns", "tag": "art_beauty"},
-  {"word": "winsome", "meaning": "attractive or appealing in appearance or character", "tag": "art_beauty"},
-  {"word": "pulchritude", "meaning": "beauty", "tag": "art_beauty"},
-  {"word": "sublime", "meaning": "of such excellence, grandeur, or beauty as to inspire great admiration or awe", "tag": "art_beauty"},
-  {"word": "grotesque", "meaning": "comically or repulsively ugly or distorted", "tag": "art_beauty"},
-  {"word": "uncouth", "meaning": "(of a person or their appearance or behavior) lacking good manners, refinement, or grace", "tag": "art_beauty"},
-  {"word": "gustatory", "meaning": "concerned with tasting or the sense of taste", "tag": "sensory_taste"},
-  {"word": "olfactory", "meaning": "relating to the sense of smell", "tag": "sensory_taste"},
-  {"word": "palatable", "meaning": "(of food or drink) pleasant to taste", "tag": "sensory_taste"},
-  {"word": "succulent", "meaning": "(of food) tender, juicy, and tasty", "tag": "sensory_taste"},
-  {"word": "brackish", "meaning": "(of water) slightly salty; unpleasant", "tag": "sensory_taste"},
-  {"word": "rancid", "meaning": "(of foods containing fat or oil) smelling or tasting unpleasant", "tag": "sensory_taste"},
-  {"word": "fetid", "meaning": "smelling extremely unpleasant", "tag": "sensory_taste"},
-  {"word": "noisome", "meaning": "having an extremely offensive smell", "tag": "sensory_taste"},
-  {"word": "pungent", "meaning": "having a sharply strong taste or smell", "tag": "sensory_taste"},
-  {"word": "redolent", "meaning": "strongly reminiscent or suggestive of (something); fragrant", "tag": "sensory_taste"},
-  {"word": "austere", "meaning": "severe or strict in manner, attitude, or appearance", "tag": "lifestyle"},
-  {"word": "spartan", "meaning": "showing the indifference to comfort or luxury traditionally associated with ancient Sparta", "tag": "lifestyle"},
-  {"word": "ascetic", "meaning": "characterized by or suggesting the practice of severe self-discipline and abstention from all forms of indulgence", "tag": "lifestyle"},
-  {"word": "sybarite", "meaning": "a person who is self-indulgent in their fondness for sensuous luxury", "tag": "lifestyle"},
-  {"word": "hedonist", "meaning": "a person who believes that the pursuit of pleasure is the most important thing in life", "tag": "lifestyle"},
-  {"word": "epicure", "meaning": "a person who takes particular pleasure in fine food and drink", "tag": "lifestyle"},
-  {"word": "debauchery", "meaning": "excessive indulgence in sensual pleasures", "tag": "lifestyle"},
-  {"word": "libertine", "meaning": "a person, especially a man, who behaves without moral principles", "tag": "lifestyle"},
-  {"word": "licentious", "meaning": "promiscuous and unprincipled in sexual matters", "tag": "lifestyle"},
-  {"word": "prudent", "meaning": "acting with or showing care and thought for the future", "tag": "lifestyle"},
-  {"word": "beguile", "meaning": "charm or enchant (someone), sometimes in a deceptive way", "tag": "persuasion"},
-  {"word": "cajole", "meaning": "persuade (someone) to do something by sustained coaxing or flattery", "tag": "persuasion"},
-  {"word": "wheedle", "meaning": "employ endearments or flattery to persuade someone to do something", "tag": "persuasion"},
-  {"word": "inveigle", "meaning": "persuade (someone) to do something by means of deception or flattery", "tag": "persuasion"},
-  {"word": "coax", "meaning": "persuade (someone) gradually or by flattery to do something", "tag": "persuasion"},
-  {"word": "blandishment", "meaning": "a flattering or pleasing statement or action used to persuade someone gently to do something", "tag": "persuasion"},
-  {"word": "obsequious", "meaning": "obedient or attentive to an excessive or servile degree", "tag": "persuasion"},
-  {"word": "sycophant", "meaning": "a person who acts obsequiously toward someone important in order to gain advantage", "tag": "persuasion"},
-  {"word": "toady", "meaning": "act in an obsequious way", "tag": "persuasion"},
-  {"word": "fawn", "meaning": "(of a person) give a display of exaggerated flattery or affection", "tag": "persuasion"},
-  {"word": "ostentatious", "meaning": "characterized by vulgar or pretentious display", "tag": "style_manner"},
-  {"word": "flamboyant", "meaning": "(of a person or their behavior) tending to attract attention because of their exuberance", "tag": "style_manner"},
-  {"word": "bombastic", "meaning": "high-sounding but with little meaning; inflated", "tag": "style_manner"},
-  {"word": "pretentious", "meaning": "attempting to impress by affecting greater importance than is actually possessed", "tag": "style_manner"},
-  {"word": "pompous", "meaning": "affectedly and irritatingly grand, solemn, or self-important", "tag": "style_manner"},
-  {"word": "mannered", "meaning": "(of a style of speaking or writing) unnatural; affected", "tag": "style_manner"},
-  {"word": "affected", "meaning": "artificial, pretentious, and designed to impress", "tag": "style_manner"},
-  {"word": "modest", "meaning": "unassuming or moderate in the estimation of one's abilities or achievements", "tag": "style_manner"},
-  {"word": "unassuming", "meaning": "not pretentious or arrogant", "tag": "style_manner"},
-  {"word": "demure", "meaning": "(of a woman or her behavior) reserved, modest, and shy", "tag": "style_manner"},
-  {"word": "amorphous", "meaning": "without a clearly defined shape or form", "tag": "shape_size"},
-  {"word": "colossal", "meaning": "extremely large", "tag": "shape_size"},
-  {"word": "gargantuan", "meaning": "enormous", "tag": "shape_size"},
-  {"word": "mammoth", "meaning": "huge", "tag": "shape_size"},
-  {"word": "titanic", "meaning": "of exceptional strength, size, or power", "tag": "shape_size"},
-  {"word": "diminutive", "meaning": "extremely or unusually small", "tag": "shape_size"},
-  {"word": "minuscule", "meaning": "extremely small; tiny", "tag": "shape_size"},
-  {"word": "infinitesimal", "meaning": "extremely small", "tag": "shape_size"},
-  {"word": "ponderous", "meaning": "slow and clumsy because of great weight", "tag": "shape_size"},
-  {"word": "wieldy", "meaning": "easily controlled or handled", "tag": "shape_size"},
-  {"word": "corpulent", "meaning": "(of a person) fat", "tag": "shape_size"},
-  {"word": "gaunt", "meaning": "(of a person) lean and haggard, especially because of suffering, hunger, or age", "tag": "shape_size"},
-  {"word": "dilated", "meaning": "make or become wider, larger, or more open", "tag": "shape_size"},
-  {"word": "distended", "meaning": "swollen due to pressure from inside; bloated", "tag": "shape_size"},
-  {"word": "turgid", "meaning": "swollen and distended or congested", "tag": "shape_size"},
-  {"word": "ubiquitous", "meaning": "present, appearing, or found everywhere", "tag": "location"},
-  {"word": "omnipresent", "meaning": "widely or constantly encountered; common or widespread", "tag": "location"},
-  {"word": "indigenous", "meaning": "originating or occurring naturally in a particular place; native", "tag": "location"},
-  {"word": "endemic", "meaning": "(of a disease or condition) regularly found among particular people or in a certain area", "tag": "location"},
-  {"word": "pandemic", "meaning": "(of a disease) prevalent over a whole country or the world", "tag": "location"},
-  {"word": "parochial", "meaning": "having a limited or narrow outlook or scope", "tag": "location"},
-  {"word": "insular", "meaning": "ignorant of or uninterested in cultures, ideas, or peoples outside one's own experience", "tag": "location"},
-  {"word": "provincial", "meaning": "of or concerning the regions outside the capital city of a country", "tag": "location"},
-  {"word": "cosmopolitan", "meaning": "familiar with and at ease in many different countries and cultures", "tag": "location"},
-  {"word": "ecumenical", "meaning": "representing a number of different Christian churches; promoting unity", "tag": "location"},
-  {"word": "anomalous", "meaning": "deviating from what is standard, normal, or expected", "tag": "logic_oddity"},
-  {"word": "aberration", "meaning": "a departure from what is normal, usual, or expected", "tag": "logic_oddity"},
-  {"word": "idiosyncrasy", "meaning": "a mode of behavior or way of thought peculiar to an individual", "tag": "logic_oddity"},
-  {"word": "eccentric", "meaning": "(of a person or their behavior) unconventional and slightly strange", "tag": "logic_oddity"},
-  {"word": "deviant", "meaning": "departing from usual or accepted standards", "tag": "logic_oddity"},
-  {"word": "atypical", "meaning": "not representative of a type, group, or class", "tag": "logic_oddity"},
-  {"word": "heterodox", "meaning": "not conforming with accepted or orthodox standards or beliefs", "tag": "logic_oddity"},
-  {"word": "iconoclastic", "meaning": "characterized by attack on cherished beliefs or institutions", "tag": "logic_oddity"},
-  {"word": "quixotic", "meaning": "exceedingly idealistic; unrealistic and impractical", "tag": "logic_oddity"},
-  {"word": "incongruous", "meaning": "not in harmony or keeping with the surroundings or other aspects of something", "tag": "logic_oddity"},
-  {"word": "deleterious", "meaning": "causing harm or damage", "tag": "harmful_bad"},
-  {"word": "detrimental", "meaning": "tending to cause harm", "tag": "harmful_bad"},
-  {"word": "pernicious", "meaning": "having a harmful effect, especially in a gradual or subtle way", "tag": "harmful_bad"},
-  {"word": "nocuous", "meaning": "noxious, harmful, or poisonous", "tag": "harmful_bad"},
-  {"word": "insalubrious", "meaning": "(especially of a climate or locality) not salubrious; unhealthy", "tag": "harmful_bad"},
-  {"word": "virulent", "meaning": "(of a disease or poison) extremely severe or harmful in its effects", "tag": "harmful_bad"},
-  {"word": "toxic", "meaning": "poisonous", "tag": "harmful_bad"},
-  {"word": "venomous", "meaning": "(of an animal) capable of injecting venom by means of a bite or sting", "tag": "harmful_bad"},
-  {"word": "malignant", "meaning": "malevolent", "tag": "harmful_bad"},
-  {"word": "injurious", "meaning": "causing or likely to cause damage or harm", "tag": "harmful_bad"},
-  {"word": "benevolent", "meaning": "well meaning and kindly", "tag": "helpful_good"},
-  {"word": "beneficent", "meaning": "(of a person) generous or doing good", "tag": "helpful_good"},
-  {"word": "benign", "meaning": "gentle and kindly", "tag": "helpful_good"},
-  {"word": "propitious", "meaning": "giving or indicating a good chance of success; favorable", "tag": "helpful_good"},
-  {"word": "auspicious", "meaning": "conducive to success; favorable", "tag": "helpful_good"},
-  {"word": "providential", "meaning": "occurring at a favorable time; opportune", "tag": "helpful_good"},
-  {"word": "opportune", "meaning": "(of a time) well-chosen or particularly favorable or appropriate", "tag": "helpful_good"},
-  {"word": "felicitous", "meaning": "well chosen or suited to the circumstances", "tag": "helpful_good"},
-  {"word": "fortuitous", "meaning": "happening by accident or chance rather than design", "tag": "helpful_good"},
-  {"word": "serendipity", "meaning": "the occurrence and development of events by chance in a happy or beneficial way", "tag": "helpful_good"},
-  {"word": "bucolic", "meaning": "relating to the pleasant aspects of the countryside and country life", "tag": "nature_environment"},
-  {"word": "pastoral", "meaning": "(of a work of art) portraying or evoking country life, typically in a romanticized or idealized form", "tag": "nature_environment"},
-  {"word": "rustic", "meaning": "relating to the countryside; rural", "tag": "nature_environment"},
-  {"word": "agrarian", "meaning": "relating to cultivated land or the cultivation of land", "tag": "nature_environment"},
-  {"word": "idyllic", "meaning": "like an idyll; extremely happy, peaceful, or picturesque", "tag": "nature_environment"},
-  {"word": "verdant", "meaning": "(of countryside) green with grass or other rich vegetation", "tag": "nature_environment"},
-  {"word": "sylvan", "meaning": "consisting of or associated with woods; wooded", "tag": "nature_environment"},
-  {"word": "arable", "meaning": "(of land) used or suitable for growing crops", "tag": "nature_environment"},
-  {"word": "fallow", "meaning": "(of farmland) plowed and harrowed but left unsown for a period", "tag": "nature_environment"},
-  {"word": "pristine", "meaning": "in its original condition; unspoiled", "tag": "nature_environment"},
-  {"word": "flag", "meaning": "to become tired, weaker, or less enthusiastic (Secondary Meaning)", "tag": "secondary_meaning"},
-  {"word": "pine", "meaning": "to suffer a mental and physical decline, especially because of a broken heart (Secondary Meaning)", "tag": "secondary_meaning"},
-  {"word": "fleece", "meaning": "to obtain a great deal of money from (someone), typically by overcharging or swindling (Secondary Meaning)", "tag": "secondary_meaning"},
-  {"word": "tell", "meaning": "to count or calculate; or to have a marked effect (Secondary Meaning)", "tag": "secondary_meaning"},
-  {"word": "wax", "meaning": "to become larger or stronger (Secondary Meaning)", "tag": "secondary_meaning"},
-  {"word": "check", "meaning": "to stop or slow down the progress of (something) (Secondary Meaning)", "tag": "secondary_meaning"},
-  {"word": "qualify", "meaning": "to make a statement less absolute; to add reservations (Secondary Meaning)", "tag": "secondary_meaning"},
-  {"word": "want", "meaning": "lack or deficiency (Secondary Meaning, e.g., 'for want of a better word')", "tag": "secondary_meaning"},
-  {"word": "beatify", "meaning": "to bless or sanctify (relates to 'beatific')", "tag": "religion_spirit"},
-  {"word": "deify", "meaning": "worship, regard, or treat (someone or something) as a god", "tag": "religion_spirit"},
-  {"word": "sacrilege", "meaning": "violation or misuse of what is regarded as sacred", "tag": "religion_spirit"},
-  {"word": "reverent", "meaning": "feeling or showing deep and solemn respect", "tag": "religion_spirit"},
-  {"word": "iconoclasm", "meaning": "the action of attacking or assertively rejecting cherished beliefs", "tag": "religion_spirit"},
-  {"word": "schism", "meaning": "a split or division between strongly opposed sections or parties", "tag": "religion_spirit"},
-  {"word": "ecclesiastical", "meaning": "relating to the Christian Church or its clergy", "tag": "religion_spirit"},
-  {"word": "secular", "meaning": "denoting attitudes, activities, or other things that have no religious or spiritual basis", "tag": "religion_spirit"},
-  {"word": "insurrection", "meaning": "a violent uprising against an authority or government", "tag": "war_rebellion"},
-  {"word": "sedition", "meaning": "conduct or speech inciting people to rebel against the authority of a state or monarch", "tag": "war_rebellion"},
-  {"word": "mutiny", "meaning": "an open rebellion against the proper authorities, especially by soldiers or sailors", "tag": "war_rebellion"},
-  {"word": "subversive", "meaning": "seeking or intended to subvert an established system or institution", "tag": "war_rebellion"},
-  {"word": "quell", "meaning": "put an end to (a rebellion or other disorder), typically by the use of force", "tag": "war_rebellion"},
-  {"word": "foment", "meaning": "instigate or stir up (an undesirable or violent sentiment or course of action)", "tag": "war_rebellion"},
-  {"word": "bellicose", "meaning": "demonstrating aggression and willingness to fight", "tag": "war_rebellion"},
-  {"word": "jingoism", "meaning": "extreme patriotism, especially in the form of aggressive or warlike foreign policy", "tag": "war_rebellion"},
-  {"word": "armistice", "meaning": "an agreement made by opposing sides in a war to stop fighting for a certain time; a truce", "tag": "war_rebellion"},
-  {"word": "conundrum", "meaning": "a confusing and difficult problem or question", "tag": "confusion_puzzle"},
-  {"word": "quandary", "meaning": "a state of perplexity or uncertainty over what to do in a difficult situation", "tag": "confusion_puzzle"},
-  {"word": "dilemma", "meaning": "a situation in which a difficult choice has to be made between two or more alternatives", "tag": "confusion_puzzle"},
-  {"word": "impasse", "meaning": "a situation in which no progress is possible, especially because of disagreement", "tag": "confusion_puzzle"},
-  {"word": "stalemate", "meaning": "a situation in which further action or progress by opposing or competing parties seems impossible", "tag": "confusion_puzzle"},
-  {"word": "labyrinthine", "meaning": "(of a network) like a labyrinth; irregular and twisting", "tag": "confusion_puzzle"},
-  {"word": "muddle", "meaning": "bring into a disordered or confusing state", "tag": "confusion_puzzle"},
-  {"word": "obfuscate", "meaning": "render obscure, unclear, or unintelligible", "tag": "confusion_puzzle"},
-  {"word": "tenuous", "meaning": "very weak or slight", "tag": "weak_fragile"},
-  {"word": "gossamer", "meaning": "used to refer to something very light, thin, and insubstantial or delicate", "tag": "weak_fragile"},
-  {"word": "diaphanous", "meaning": "(especially of fabric) light, delicate, and translucent", "tag": "weak_fragile"},
-  {"word": "fragile", "meaning": "(of an object) easily broken or damaged", "tag": "weak_fragile"},
-  {"word": "frail", "meaning": "(of a person) weak and delicate", "tag": "weak_fragile"},
-  {"word": "brittle", "meaning": "hard but liable to break or shatter easily", "tag": "weak_fragile"},
-  {"word": "decrepit", "meaning": "(of a person) elderly and infirm", "tag": "weak_fragile"},
-  {"word": "flimsy", "meaning": "insubstantial and easily damaged", "tag": "weak_fragile"},
-  {"word": "polemic", "meaning": "a strong verbal or written attack on someone or something", "tag": "argument_logic"},
-  {"word": "rebuttal", "meaning": "a refutation or contradiction", "tag": "argument_logic"},
-  {"word": "refute", "meaning": "prove (a statement or theory) to be wrong or false", "tag": "argument_logic"},
-  {"word": "counterargument", "meaning": "an argument or set of reasons put forward to oppose an idea or theory developed in another argument", "tag": "argument_logic"},
-  {"word": "tendentious", "meaning": "expressing or intending to promote a particular cause or point of view, especially a controversial one", "tag": "argument_logic"},
-  {"word": "didactic", "meaning": "intended to teach, particularly in having moral instruction as an ulterior motive", "tag": "argument_logic"},
-  {"word": "pedantic", "meaning": "of or like a pedant (excessively concerned with minor details and rules)", "tag": "argument_logic"},
-  {"word": "untenable", "meaning": "(especially of a position or view) not able to be maintained or defended against attack or objection", "tag": "argument_logic"},
-  {"word": "infallible", "meaning": "incapable of making mistakes or being wrong", "tag": "argument_logic"},
-  {"word": "axiom", "meaning": "a statement or proposition that is regarded as being established, accepted, or self-evidently true", "tag": "argument_logic"},
-  {"word": "ersatz", "meaning": "(of a product) made or used as a substitute, typically an inferior one, for something else", "tag": "fake_artificial"},
-  {"word": "factitious", "meaning": "artificially created or developed", "tag": "fake_artificial"},
-  {"word": "sham", "meaning": "a thing that is not what it is purported to be", "tag": "fake_artificial"},
-  {"word": "bogus", "meaning": "not genuine or true; fake", "tag": "fake_artificial"},
-  {"word": "counterfeit", "meaning": "made in exact imitation of something valuable or important with the intention to deceive or defraud", "tag": "fake_artificial"},
-  {"word": "contrived", "meaning": "deliberately created rather than arising naturally or spontaneously", "tag": "fake_artificial"},
-  {"word": "feigned", "meaning": "simulated or pretended; insincere", "tag": "fake_artificial"},
-  {"word": "histrionic", "meaning": "overly theatrical or melodramatic in character or style", "tag": "fake_artificial"},
-  {"word": "labile", "meaning": "liable to change; easily altered", "tag": "change_unstable"},
-  {"word": "mutable", "meaning": "liable to change", "tag": "change_unstable"},
-  {"word": "protean", "meaning": "tending or able to change frequently or easily", "tag": "change_unstable"},
-  {"word": "fickle", "meaning": "changing frequently, especially as regards one's loyalties, interests, or affection", "tag": "change_unstable"},
-  {"word": "erratic", "meaning": "not even or regular in pattern or movement; unpredictable", "tag": "change_unstable"},
-  {"word": "spasmodic", "meaning": "occurring or done in brief, irregular bursts", "tag": "change_unstable"},
-  {"word": "fitful", "meaning": "active or occurring spasmodically or intermittently; not regular or steady", "tag": "change_unstable"},
-  {"word": "apprehensive", "meaning": "anxious or fearful that something bad or unpleasant will happen", "tag": "fear_caution"},
-  {"word": "wary", "meaning": "feeling or showing caution about possible dangers or problems", "tag": "fear_caution"},
-  {"word": "chary", "meaning": "cautiously or suspiciously reluctant to do something", "tag": "fear_caution"},
-  {"word": "circumspect", "meaning": "wary and unwilling to take risks", "tag": "fear_caution"},
-  {"word": "prudent", "meaning": "acting with or showing care and thought for the future", "tag": "fear_caution"},
-  {"word": "solicitous", "meaning": "characterized by or showing interest or concern", "tag": "fear_caution"},
-  {"word": "pariah", "meaning": "an outcast", "tag": "social_status"},
-  {"word": "ostracize", "meaning": "exclude (someone) from a society or group", "tag": "social_status"},
-  {"word": "caste", "meaning": "each of the hereditary classes of Hindu society; any class or group of people who inherit exclusive privileges", "tag": "social_status"},
-  {"word": "sect", "meaning": "a group of people with somewhat different religious beliefs from those of a larger group to which they belong", "tag": "social_status"},
-  {"word": "clique", "meaning": "a small, close-knit group of people who do not readily allow others to join them", "tag": "social_status"},
-  {"word": "egalitarian", "meaning": "relating to or believing in the principle that all people are equal and deserve equal rights and opportunities", "tag": "social_status"},
-  {"word": "hierarchy", "meaning": "a system or organization in which people or groups are ranked one above the other according to status or authority", "tag": "social_status"},
-  {"word": "stratify", "meaning": "arrange or classify", "tag": "social_status"},
-  {"word": "haphazard", "meaning": "lacking any obvious principle of organization", "tag": "random_luck"},
-  {"word": "arbitrary", "meaning": "based on random choice or personal whim, rather than any reason or system", "tag": "random_luck"},
-  {"word": "desultory", "meaning": "lacking a plan, purpose, or enthusiasm", "tag": "random_luck"},
-  {"word": "caprice", "meaning": "a sudden and unaccountable change of mood or behavior", "tag": "random_luck"},
-  {"word": "whim", "meaning": "a sudden desire or change of mind, especially one that is unusual or unexplained", "tag": "random_luck"},
-  {"word": "fluke", "meaning": "unlikely chance occurrence, especially a surprising piece of luck", "tag": "random_luck"},
-  {"word": "dogged", "meaning": "having or showing tenacity and grim persistence", "tag": "determined"},
-  {"word": "inexorable", "meaning": "impossible to stop or prevent", "tag": "determined"},
-  {"word": "implacable", "meaning": "unable to be placated", "tag": "determined"},
-  {"word": "relentless", "meaning": "oppressively constant; incessant", "tag": "determined"},
-  {"word": "steadfast", "meaning": "resolutely or dutifully firm and unwavering", "tag": "determined"},
-  {"word": "staunch", "meaning": "loyal and committed in attitude", "tag": "determined"},
-  {"word": "resolute", "meaning": "admirably purposeful, determined, and unwavering", "tag": "determined"},
-  {"word": "occult", "meaning": "supernatural, mystical, or magical beliefs, practices, or phenomena", "tag": "secret_mystery"},
-  {"word": "arcane", "meaning": "understood by few; mysterious or secret", "tag": "secret_mystery"},
-  {"word": "esoteric", "meaning": "intended for or likely to be understood by only a small number of people", "tag": "secret_mystery"},
-  {"word": "recondite", "meaning": "little known; abstruse", "tag": "secret_mystery"},
-  {"word": "cabale", "meaning": "a secret political clique or faction", "tag": "secret_mystery"},
-  {"word": "stealthy", "meaning": "behaving, done, or made in a cautious and surreptitious manner, so as not to be seen or heard", "tag": "secret_mystery"},
-  {"word": "furtive", "meaning": "attempting to avoid notice or attention", "tag": "secret_mystery"},
-  {"word": "discreet", "meaning": "careful and circumspect in one's speech or actions", "tag": "secret_mystery"},
-  {"word": "discrete", "meaning": "individually separate and distinct (Note spelling difference)", "tag": "distinct_separate"},
-  {"word": "disparate", "meaning": "essentially different in kind; not allowing comparison", "tag": "distinct_separate"},
-  {"word": "divergent", "meaning": "tending to be different or develop in different directions", "tag": "distinct_separate"},
-  {"word": "distinct", "meaning": "recognizably different in nature from something else of a similar type", "tag": "distinct_separate"},
-  {"word": "various", "meaning": "different from one another; of different kinds or sorts", "tag": "distinct_separate"},
-  {"word": "manifold", "meaning": "many and various", "tag": "distinct_separate"},
-  {"word": "myriad", "meaning": "a countless or extremely great number", "tag": "distinct_separate"},
-  {"word": "fatuous", "meaning": "silly and pointless", "tag": "stupid_silly"},
-  {"word": "vacuous", "meaning": "having or showing a lack of thought or intelligence; mindless", "tag": "stupid_silly"},
-  {"word": "obtuse", "meaning": "annoyingly insensitive or slow to understand", "tag": "stupid_silly"},
-  {"word": "inane", "meaning": "silly; stupid", "tag": "stupid_silly"},
-  {"word": "vapid", "meaning": "offering nothing that is stimulating or challenging", "tag": "stupid_silly"},
-  {"word": "asinine", "meaning": "extremely stupid or foolish", "tag": "stupid_silly"},
-  {"word": "dolt", "meaning": "a stupid person", "tag": "stupid_silly"},
-  {"word": "adulation", "meaning": "obsequious flattery; excessive admiration or praise", "tag": "praise_flattery"},
-  {"word": "lionize", "meaning": "give a lot of public attention and approval to (someone); treat as a celebrity", "tag": "praise_flattery"},
-  {"word": "idolize", "meaning": "admire, revere, or love greatly or excessively", "tag": "praise_flattery"},
-  {"word": "exalt", "meaning": "hold (someone or something) in very high regard", "tag": "praise_flattery"},
-  {"word": "canonize", "meaning": "regard as being above reproach or of great significance", "tag": "praise_flattery"},
-  {"word": "deference", "meaning": "humble submission and respect", "tag": "respect"},
-  {"word": "reverence", "meaning": "deep respect for someone or something", "tag": "respect"},
-  {"word": "venerate", "meaning": "regard with great respect", "tag": "respect"},
-  {"word": "august", "meaning": "respected and impressive", "tag": "respect"},
-  {"word": "estimable", "meaning": "worthy of great respect", "tag": "respect"},
-  {"word": "reprove", "meaning": "reprimand or censure (someone)", "tag": "scold_criticize"},
-  {"word": "rebuke", "meaning": "express sharp disapproval or criticism", "tag": "scold_criticize"},
-  {"word": "remonstrate", "meaning": "make a forcefully reproachful protest", "tag": "scold_criticize"},
-  {"word": "censure", "meaning": "express severe disapproval", "tag": "scold_criticize"},
-  {"word": "castigate", "meaning": "to reprimand severely", "tag": "scold_criticize"},
-  {"word": "chide", "meaning": "scold or rebuke", "tag": "scold_criticize"},
-  {"word": "reproach", "meaning": "address (someone) in such a way as to express disapproval or disappointment", "tag": "scold_criticize"},
-  {"word": "upbraid", "meaning": "find fault with (someone); scold", "tag": "scold_criticize"},
-  {"word": "lambaste", "meaning": "criticize harshly", "tag": "scold_criticize"},
-  {"word": "excoriate", "meaning": "criticize severely", "tag": "scold_criticize"},
-  {"word": "supercilious", "meaning": "behaving or looking as though one thinks one is superior to others", "tag": "attitude_arrogant"},
-  {"word": "imperious", "meaning": "assuming power or authority without justification; arrogant and domineering", "tag": "attitude_arrogant"},
-  {"word": "haughty", "meaning": "arrogantly superior and disdainful", "tag": "attitude_arrogant"},
-  {"word": "bumptious", "meaning": "self-assertive or proud to an irritating degree", "tag": "attitude_arrogant"},
-  {"word": "hubris", "meaning": "excessive pride or self-confidence", "tag": "attitude_arrogant"},
-  {"word": "overweening", "meaning": "showing excessive confidence or pride", "tag": "attitude_arrogant"},
-  {"word": "sanctimonious", "meaning": "making a show of being morally superior to other people", "tag": "attitude_arrogant"},
-  {"word": "pontificate", "meaning": "express one's opinions in a way considered annoyingly pompous and dogmatic", "tag": "attitude_arrogant"},
-  {"word": "dogmatic", "meaning": "inclined to lay down principles as incontrovertibly true", "tag": "attitude_arrogant"},
-  {"word": "condescending", "meaning": "having or showing a feeling of patronizing superiority", "tag": "attitude_arrogant"},
-  {"word": "celerity", "meaning": "swiftness of movement", "tag": "speed_time"},
-  {"word": "expedite", "meaning": "make (an action or process) happen sooner or be accomplished more quickly", "tag": "speed_time"},
-  {"word": "precipitate", "meaning": "cause (an event or situation, typically one that is bad) to happen suddenly, unexpectedly, or prematurely", "tag": "speed_time"},
-  {"word": "dilatory", "meaning": "slow to act", "tag": "speed_time"},
-  {"word": "laggard", "meaning": "a person who makes slow progress and falls behind others", "tag": "speed_time"},
-  {"word": "temporize", "meaning": "avoid making a decision or committing oneself in order to gain time", "tag": "speed_time"},
-  {"word": "procrastinate", "meaning": "delay or postpone action; put off doing something", "tag": "speed_time"},
-  {"word": "dawdle", "meaning": "waste time; be slow", "tag": "speed_time"},
-  {"word": "listless", "meaning": "lacking energy or enthusiasm", "tag": "speed_time"},
-  {"word": "torpid", "meaning": "mentally or physically inactive; lethargic", "tag": "speed_time"},
-  {"word": "calumny", "meaning": "the making of false and defamatory statements in order to damage someone's reputation", "tag": "criticism_insult"},
-  {"word": "obloquy", "meaning": "strong public criticism or verbal abuse", "tag": "criticism_insult"},
-  {"word": "aspersion", "meaning": "an attack on the reputation or integrity of someone or something", "tag": "criticism_insult"},
-  {"word": "vilification", "meaning": "abusively disparaging speech or writing", "tag": "criticism_insult"},
-  {"word": "slander", "meaning": "the action or crime of making a false spoken statement damaging to a person's reputation", "tag": "criticism_insult"},
-  {"word": "libel", "meaning": "a published false statement that is damaging to a person's reputation", "tag": "criticism_insult"},
-  {"word": "defamatory", "meaning": "(of remarks, writing, etc.) damaging the good reputation of someone", "tag": "criticism_insult"},
-  {"word": "pejorative", "meaning": "expressing contempt or disapproval", "tag": "criticism_insult"},
-  {"word": "derisive", "meaning": "expressing contempt or ridicule", "tag": "criticism_insult"},
-  {"word": "scorn", "meaning": "the feeling or belief that someone or something is worthless or despicable", "tag": "criticism_insult"},
-  {"word": "panegyric", "meaning": "a public speech or published text in praise of someone or something", "tag": "praise_honor"},
-  {"word": "encomium", "meaning": "a speech or piece of writing that praises someone or something highly", "tag": "praise_honor"},
-  {"word": "paean", "meaning": "a song of praise or triumph", "tag": "praise_honor"},
-  {"word": "accolade", "meaning": "an award or privilege granted as a special honor or as an acknowledgment of merit", "tag": "praise_honor"},
-  {"word": "plaudit", "meaning": "praise", "tag": "praise_honor"},
-  {"word": "approbation", "meaning": "approval or praise", "tag": "praise_honor"},
-  {"word": "homage", "meaning": "special honor or respect shown publicly", "tag": "praise_honor"},
-  {"word": "tribute", "meaning": "an act, statement, or gift that is intended to show gratitude, respect, or admiration", "tag": "praise_honor"},
-  {"word": "kudos", "meaning": "praise and honor received for an achievement", "tag": "praise_honor"},
-  {"word": "extolment", "meaning": "enthusiastic praise", "tag": "praise_honor"},
-  {"word": "abrogate", "meaning": "repeal or do away with (a law, right, or formal agreement)", "tag": "law_rules"},
-  {"word": "rescind", "meaning": "revoke, cancel, or repeal (a law, order, or agreement)", "tag": "law_rules"},
-  {"word": "annul", "meaning": "declare invalid (an official agreement, decision, or result)", "tag": "law_rules"},
-  {"word": "nullify", "meaning": "make legally null and void; invalidate", "tag": "law_rules"},
-  {"word": "void", "meaning": "not valid or legally binding", "tag": "law_rules"},
-  {"word": "countermand", "meaning": "revoke (an order)", "tag": "law_rules"},
-  {"word": "overturn", "meaning": "abolish, invalidate, or reverse (a previous system, decision, situation, etc.)", "tag": "law_rules"},
-  {"word": "repeal", "meaning": "revoke or annul (a law or congressional act)", "tag": "law_rules"},
-  {"word": "retract", "meaning": "withdraw (a statement or accusation) as untrue or unjustified", "tag": "law_rules"},
-  {"word": "abjure", "meaning": "solemnly renounce (a belief, cause, or claim)", "tag": "law_rules"},
-  {"word": "malinger", "meaning": "exaggerate or feign illness in order to escape duty or work", "tag": "deception_lying"},
-  {"word": "shirk", "meaning": "avoid or neglect (a duty or responsibility)", "tag": "deception_lying"},
-  {"word": "skulk", "meaning": "keep out of sight, typically with a sinister or cowardly motive", "tag": "deception_lying"},
-  {"word": "hoodwink", "meaning": "deceive or trick (someone)", "tag": "deception_lying"},
-  {"word": "bamboozle", "meaning": "fool or cheat (someone)", "tag": "deception_lying"},
-  {"word": "dupe", "meaning": "deceive; trick", "tag": "deception_lying"},
-  {"word": "delude", "meaning": "impose a misleading belief upon (someone); deceive; fool", "tag": "deception_lying"},
-  {"word": "beguile", "meaning": "charm or enchant (someone), sometimes in a deceptive way", "tag": "deception_lying"},
-  {"word": "ensnare", "meaning": "catch in or as in a trap", "tag": "deception_lying"},
-  {"word": "inveigle", "meaning": "persuade (someone) to do something by means of deception or flattery", "tag": "deception_lying"},
-  {"word": "zenith", "meaning": "the time at which something is most powerful or successful", "tag": "high_low_point"},
-  {"word": "apex", "meaning": "the top or highest part of something, especially one forming a point", "tag": "high_low_point"},
-  {"word": "acme", "meaning": "the point at which someone or something is best, perfect, or most successful", "tag": "high_low_point"},
-  {"word": "pinnacle", "meaning": "the most successful point; the culmination", "tag": "high_low_point"},
-  {"word": "summit", "meaning": "the highest point of a hill or mountain", "tag": "high_low_point"},
-  {"word": "apogee", "meaning": "the highest point in the development of something", "tag": "high_low_point"},
-  {"word": "nadir", "meaning": "the lowest point in the fortunes of a person or organization", "tag": "high_low_point"},
-  {"word": "perigee", "meaning": "the point in the orbit of the moon or a satellite at which it is nearest to the earth (often used metaphorically)", "tag": "high_low_point"},
-  {"word": "base", "meaning": "the lowest part or edge of something", "tag": "high_low_point"},
-  {"word": "vertex", "meaning": "the highest point; the top or apex", "tag": "high_low_point"},
-  {"word": "sporadic", "meaning": "occurring at irregular intervals or only in a few places; scattered or isolated", "tag": "frequency"},
-  {"word": "intermittent", "meaning": "occurring at irregular intervals; not continuous or steady", "tag": "frequency"},
-  {"word": "fitful", "meaning": "active or occurring spasmodically or intermittently; not regular or steady", "tag": "frequency"},
-  {"word": "spasmodic", "meaning": "occurring or done in brief, irregular bursts", "tag": "frequency"},
-  {"word": "incessant", "meaning": "(of something regarded as unpleasant) continuing without pause or interruption", "tag": "frequency"},
-  {"word": "ceaseless", "meaning": "constant and unending", "tag": "frequency"},
-  {"word": "perpetual", "meaning": "never ending or changing", "tag": "frequency"},
-  {"word": "unremitting", "meaning": "never relaxing or slackening; incessant", "tag": "frequency"},
-  {"word": "relentless", "meaning": "oppressively constant; incessant", "tag": "frequency"},
-  {"word": "recurrent", "meaning": "occurring often or repeatedly", "tag": "frequency"},
-  {"word": "maelstrom", "meaning": "a powerful whirlpool in the sea or a river; a situation or state of confused movement or violent turmoil", "tag": "chaos_disorder"},
-  {"word": "bedlam", "meaning": "a scene of uproar and confusion", "tag": "chaos_disorder"},
-  {"word": "pandemonium", "meaning": "wild and noisy disorder or confusion; uproar", "tag": "chaos_disorder"},
-  {"word": "havoc", "meaning": "widespread destruction", "tag": "chaos_disorder"},
-  {"word": "turmoil", "meaning": "a state of great disturbance, confusion, or uncertainty", "tag": "chaos_disorder"},
-  {"word": "upheaval", "meaning": "a violent or sudden change or disruption to something", "tag": "chaos_disorder"},
-  {"word": "anarchy", "meaning": "a state of disorder due to absence or nonrecognition of authority", "tag": "chaos_disorder"},
-  {"word": "disarray", "meaning": "a state of disorganization or untidiness", "tag": "chaos_disorder"},
-  {"word": "discord", "meaning": "disagreement between people", "tag": "chaos_disorder"},
-  {"word": "fomenter", "meaning": "one who brings about or incites something (usually trouble)", "tag": "chaos_disorder"},
-  {"word": "obstreperous", "meaning": "noisy and difficult to control", "tag": "noisy_loud"},
-  {"word": "vociferous", "meaning": "(especially of a person or speech) vehement or clamorous", "tag": "noisy_loud"},
-  {"word": "clamorous", "meaning": "making a loud and confused noise", "tag": "noisy_loud"},
-  {"word": "boisterous", "meaning": "(of a person, event, or behavior) noisy, energetic, and cheerful; rowdy", "tag": "noisy_loud"},
-  {"word": "rowdy", "meaning": "noisy and disorderly", "tag": "noisy_loud"},
-  {"word": "raucous", "meaning": "making or constituting a disturbingly harsh and loud noise", "tag": "noisy_loud"},
-  {"word": "strident", "meaning": "loud and harsh; grating", "tag": "noisy_loud"},
-  {"word": "cacophonous", "meaning": "involving or producing a harsh, discordant mixture of sounds", "tag": "noisy_loud"},
-  {"word": "dissonant", "meaning": "lacking harmony", "tag": "noisy_loud"},
-  {"word": "blatant", "meaning": "(of bad behavior) done openly and unashamedly; (of a sound) loud and distinct", "tag": "noisy_loud"},
-  {"word": "germane", "meaning": "relevant to a subject under consideration", "tag": "logic_relevance"},
-  {"word": "pertinent", "meaning": "relevant or applicable to a particular matter; apposite", "tag": "logic_relevance"},
-  {"word": "apposite", "meaning": "apt in the circumstances or in relation to something", "tag": "logic_relevance"},
-  {"word": "apropos", "meaning": "very appropriate to a particular situation", "tag": "logic_relevance"},
-  {"word": "irrelevant", "meaning": "not connected with or relevant to something", "tag": "logic_relevance"},
-  {"word": "extraneous", "meaning": "irrelevant or unrelated to the subject being dealt with", "tag": "logic_relevance"},
-  {"word": "immaterial", "meaning": "unimportant under the circumstances; irrelevant", "tag": "logic_relevance"},
-  {"word": "inapplicable", "meaning": "not applicable or relevant", "tag": "logic_relevance"},
-  {"word": "tangential", "meaning": "diverging from a previous course or line; erratic", "tag": "logic_relevance"},
-  {"word": "peripheral", "meaning": "of secondary or minor importance; marginal", "tag": "logic_relevance"},
-  {"word": "sycophantic", "meaning": "behaving or done in an obsequious way in order to gain advantage", "tag": "submissive_weak"},
-  {"word": "obsequious", "meaning": "obedient or attentive to an excessive or servile degree", "tag": "submissive_weak"},
-  {"word": "servile", "meaning": "having or showing an excessive willingness to serve or please others", "tag": "submissive_weak"},
-  {"word": "subservient", "meaning": "prepared to obey others unquestioningly", "tag": "submissive_weak"},
-  {"word": "fawning", "meaning": "displaying exaggerated flattery or affection", "tag": "submissive_weak"},
-  {"word": "ingratiating", "meaning": "intended to gain approval or favor; sycophantic", "tag": "submissive_weak"},
-  {"word": "toadying", "meaning": "acting in an obsequious way", "tag": "submissive_weak"},
-  {"word": "groveling", "meaning": "acting in an obsequious manner in order to obtain someone's forgiveness or favor", "tag": "submissive_weak"},
-  {"word": "slavish", "meaning": "relating to or characteristic of a slave, typically by behaving in a servile or submissive way", "tag": "submissive_weak"},
-  {"word": "compliant", "meaning": "inclined to agree with others or obey rules, especially to an excessive degree", "tag": "submissive_weak"},
-  {"word": "prodigal", "meaning": "spending money or resources freely and recklessly; wastefully extravagant", "tag": "money_spending"},
-  {"word": "profligate", "meaning": "recklessly extravagant or wasteful in the use of resources", "tag": "money_spending"},
-  {"word": "spendthrift", "meaning": "a person who spends money in an extravagant, irresponsible way", "tag": "money_spending"},
-  {"word": "improvident", "meaning": "not having or showing foresight; spendthrift or thoughtless", "tag": "money_spending"},
-  {"word": "thriftless", "meaning": "spending money in an extravagant and wasteful way", "tag": "money_spending"},
-  {"word": "wastrel", "meaning": "a wasteful or good-for-nothing person", "tag": "money_spending"},
-  {"word": "frugal", "meaning": "sparing or economical with regard to money or food", "tag": "money_spending"},
-  {"word": "economical", "meaning": "giving good value or return in relation to the money, time, or effort expended", "tag": "money_spending"},
-  {"word": "thrifty", "meaning": "(of a person or their behavior) using money and other resources carefully and not wastefully", "tag": "money_spending"},
-  {"word": "husbandry", "meaning": "management and conservation of resources", "tag": "money_spending"},
-  {"word": "moribund", "meaning": "(of a person) at the point of death; (of a thing) in terminal decline", "tag": "decay_death"},
-  {"word": "senescent", "meaning": "growing old; aging", "tag": "decay_death"},
-  {"word": "macabre", "meaning": "disturbing and horrifying because of involvement with or depiction of death and injury", "tag": "decay_death"},
-  {"word": "defunct", "meaning": "no longer existing or functioning", "tag": "decay_death"},
-  {"word": "obsolete", "meaning": "no longer produced or used; out of date", "tag": "decay_death"},
-  {"word": "archaic", "meaning": "very old or old-fashioned", "tag": "decay_death"},
-  {"word": "antiquated", "meaning": "old-fashioned or outdated", "tag": "decay_death"},
-  {"word": "atrophy", "meaning": "(of body tissue or an organ) waste away, typically due to the degeneration of cells", "tag": "decay_death"},
-  {"word": "cadaverous", "meaning": "resembling a corpse in being very pale, thin, or bony", "tag": "decay_death"},
-  {"word": "ghastly", "meaning": "causing great horror or fear; frightful or macabre", "tag": "decay_death"},
-  {"word": "ingenuous", "meaning": "(of a person or action) innocent and unsuspecting", "tag": "innocence_naive"},
-  {"word": "guileless", "meaning": "devoid of guile; innocent and without deception", "tag": "innocence_naive"},
-  {"word": "naive", "meaning": "(of a person or action) showing a lack of experience, wisdom, or judgment", "tag": "innocence_naive"},
-  {"word": "artless", "meaning": "without guile or deception", "tag": "innocence_naive"},
-  {"word": "innocent", "meaning": "not guilty of a crime or offense", "tag": "innocence_naive"},
-  {"word": "credulous", "meaning": "having or showing too great a readiness to believe things", "tag": "innocence_naive"},
-  {"word": "gullible", "meaning": "easily persuaded to believe something; credulous", "tag": "innocence_naive"},
-  {"word": "unwary", "meaning": "not conscious of or careful about possible dangers", "tag": "innocence_naive"},
-  {"word": "unsuspecting", "meaning": "(of a person) not aware of the presence of danger; feeling no suspicion", "tag": "innocence_naive"},
-  {"word": "green", "meaning": "(of a person) inexperienced; naive", "tag": "innocence_naive"},
-  {"word": "cupidity", "meaning": "greed for money or possessions", "tag": "greed_desire"},
-  {"word": "avarice", "meaning": "extreme greed for wealth or material gain", "tag": "greed_desire"},
-  {"word": "rapacity", "meaning": "aggressive greed", "tag": "greed_desire"},
-  {"word": "covetous", "meaning": "having or showing a great desire to possess something, typically something belonging to someone else", "tag": "greed_desire"},
-  {"word": "voracious", "meaning": "wanting or devouring great quantities of food", "tag": "greed_desire"},
-  {"word": "insatiable", "meaning": "(of an appetite or desire) impossible to satisfy", "tag": "greed_desire"},
-  {"word": "gluttonous", "meaning": "excessively greedy", "tag": "greed_desire"},
-  {"word": "acquisitive", "meaning": "excessively interested in acquiring money or material things", "tag": "greed_desire"},
-  {"word": "mercenary", "meaning": "(of a person or their behavior) primarily concerned with making money at the expense of ethics", "tag": "greed_desire"},
-  {"word": "materialistic", "meaning": "excessively concerned with material possessions; money-oriented", "tag": "greed_desire"},
-  {"word": "exculpate", "meaning": "show or declare that (someone) is not guilty of wrongdoing", "tag": "justice_forgive"},
-  {"word": "exonerate", "meaning": "(especially of an official body) absolve (someone) from blame for a fault or wrongdoing", "tag": "justice_forgive"},
-  {"word": "acquit", "meaning": "free (someone) from a criminal charge by a verdict of not guilty", "tag": "justice_forgive"},
-  {"word": "absolve", "meaning": "set or declare (someone) free from blame, guilt, or responsibility", "tag": "justice_forgive"},
-  {"word": "vindicate", "meaning": "clear (someone) of blame or suspicion", "tag": "justice_forgive"},
-  {"word": "pardon", "meaning": "the action of forgiving or being forgiven for an error or offense", "tag": "justice_forgive"},
-  {"word": "amnesty", "meaning": "an official pardon for people who have been convicted of political offenses", "tag": "justice_forgive"},
-  {"word": "remit", "meaning": "cancel or refrain from exacting or inflicting (a debt or punishment)", "tag": "justice_forgive"},
-  {"word": "clemency", "meaning": "mercy; lenience", "tag": "justice_forgive"},
-  {"word": "lenient", "meaning": "(of punishment or a person in authority) permissive, merciful, or tolerant", "tag": "justice_forgive"},
-  {"word": "aghast", "meaning": "filled with horror or shock", "tag": "shock_surprise"},
-  {"word": "stupefied", "meaning": "make (someone) unable to think or feel properly", "tag": "shock_surprise"},
-  {"word": "dumbfounded", "meaning": "greatly astonish or amaze", "tag": "shock_surprise"},
-  {"word": "flabbergasted", "meaning": "greatly surprised; astonished", "tag": "shock_surprise"},
-  {"word": "astounded", "meaning": "shock or greatly surprise", "tag": "shock_surprise"},
-  {"word": "bewildered", "meaning": "cause (someone) to become perplexed and confused", "tag": "shock_surprise"},
-  {"word": "nonplussed", "meaning": "(of a person) surprised and confused so much that they are unsure how to react", "tag": "shock_surprise"},
-  {"word": "thunderstruck", "meaning": "extremely surprised or shocked", "tag": "shock_surprise"},
-  {"word": "appalled", "meaning": "greatly dismay or horrify", "tag": "shock_surprise"},
-  {"word": "startled", "meaning": "cause (a person or animal) to feel sudden shock or alarm", "tag": "shock_surprise"},
-  {"word": "obfuscate", "meaning": "render obscure, unclear, or unintelligible", "tag": "clarity_confusion"},
-  {"word": "elucidate", "meaning": "make (something) clear; explain", "tag": "clarity_confusion"},
-  {"word": "illuminate", "meaning": "help to clarify or explain", "tag": "clarity_confusion"},
-  {"word": "explicate", "meaning": "analyze and develop (an idea or principle) in detail", "tag": "clarity_confusion"},
-  {"word": "construe", "meaning": "interpret (a word or action) in a particular way", "tag": "clarity_confusion"},
-  {"word": "mystify", "meaning": "utterly bewilder or perplex (someone)", "tag": "clarity_confusion"},
-  {"word": "baffle", "meaning": "totally bewilder or perplex", "tag": "clarity_confusion"},
-  {"word": "befuddle", "meaning": "make (someone) unable to think clearly", "tag": "clarity_confusion"},
-  {"word": "confound", "meaning": "cause surprise or confusion in (someone), especially by acting against their expectations", "tag": "clarity_confusion"},
-  {"word": "garble", "meaning": "reproduce (a message, sound, or transmission) in a confused and distorted way", "tag": "clarity_confusion"},
-  {"word": "gall", "meaning": "bold, impudent behavior", "tag": "bitterness_anger"},
-  {"word": "rancor", "meaning": "bitterness or resentfulness, especially when long-standing", "tag": "bitterness_anger"},
-  {"word": "acrimony", "meaning": "bitterness or ill feeling", "tag": "bitterness_anger"},
-  {"word": "animosity", "meaning": "strong hostility", "tag": "bitterness_anger"},
-  {"word": "antipathy", "meaning": "a deep-seated feeling of dislike; aversion", "tag": "bitterness_anger"},
-  {"word": "enmity", "meaning": "the state or feeling of being actively opposed or hostile to someone or something", "tag": "bitterness_anger"},
-  {"word": "malice", "meaning": "the intention or desire to do evil; ill will", "tag": "bitterness_anger"},
-  {"word": "spite", "meaning": "a desire to hurt, annoy, or offend someone", "tag": "bitterness_anger"},
-  {"word": "venom", "meaning": "extreme malice and bitterness shown in someone's attitude, speech, or actions", "tag": "bitterness_anger"},
-  {"word": "vitriol", "meaning": "cruel and bitter criticism", "tag": "bitterness_anger"},
-  {"word": "saturate", "meaning": "cause (something) to become thoroughly soaked with liquid so that no more can be absorbed", "tag": "amount_full"},
-  {"word": "inundate", "meaning": "overwhelm (someone) with things or people to be dealt with", "tag": "amount_full"},
-  {"word": "deluge", "meaning": "inundate with a great quantity of something", "tag": "amount_full"},
-  {"word": "glut", "meaning": "an excessively abundant supply of something", "tag": "amount_full"},
-  {"word": "surfeit", "meaning": "an excessive amount of something", "tag": "amount_full"},
-  {"word": "teem", "meaning": "be full of or swarming with", "tag": "amount_full"},
-  {"word": "replete", "meaning": "filled or well-supplied with something", "tag": "amount_full"},
-  {"word": "brim", "meaning": "be full to the point of overflowing", "tag": "amount_full"},
-  {"word": "overflow", "meaning": "be so full that the contents go over the sides", "tag": "amount_full"},
-  {"word": "congested", "meaning": "(of a road or place) so crowded with traffic or people as to hinder freedom of movement", "tag": "amount_full"},
-  {"word": "buttress", "meaning": "provide a building or structure with projecting supports built against its walls; strengthen or support", "tag": "support_strengthen"},
-  {"word": "espouse", "meaning": "adopt or support (a cause, belief, or way of life)", "tag": "support_strengthen"},
-  {"word": "champion", "meaning": "vigorously support or defend the cause of", "tag": "support_strengthen"},
-  {"word": "proponent", "meaning": "a person who advocates a theory, proposal, or project", "tag": "support_strengthen"},
-  {"word": "advocate", "meaning": "publicly recommend or support", "tag": "support_strengthen"},
-  {"word": "underpin", "meaning": "support, justify, or form the basis for", "tag": "support_strengthen"},
-  {"word": "substantiate", "meaning": "provide evidence to support or prove the truth of", "tag": "support_strengthen"},
-  {"word": "corroborate", "meaning": "confirm or give support to (a statement, theory, or finding)", "tag": "support_strengthen"},
-  {"word": "bolster", "meaning": "support or strengthen; prop up", "tag": "support_strengthen"},
-  {"word": "sanction", "meaning": "give official permission or approval for (an action)", "tag": "support_strengthen"},
-  {"word": "vitiate", "meaning": "spoil or impair the quality or efficiency of", "tag": "weaken_damage"},
-  {"word": "mar", "meaning": "impair the appearance of; disfigure", "tag": "weaken_damage"},
-  {"word": "impair", "meaning": "weaken or damage something (especially a human faculty or function)", "tag": "weaken_damage"},
-  {"word": "undermine", "meaning": "damage or weaken (someone or something), especially gradually or insidiously", "tag": "weaken_damage"},
-  {"word": "compromise", "meaning": "weaken (a reputation or principle) by accepting standards that are lower than is desirable", "tag": "weaken_damage"},
-  {"word": "subvert", "meaning": "undermine the power and authority of (an established system or institution)", "tag": "weaken_damage"},
-  {"word": "sabotage", "meaning": "deliberately destroy, damage, or obstruct (something)", "tag": "weaken_damage"},
-  {"word": "erode", "meaning": "(of wind, water, or other natural agents) gradually wear away (soil, rock, or land)", "tag": "weaken_damage"},
-  {"word": "blight", "meaning": "have a severely detrimental effect on", "tag": "weaken_damage"},
-  {"word": "adulterate", "meaning": "render (something) poorer in quality by adding another substance, typically an inferior one", "tag": "weaken_damage"},
-  {"word": "eschew", "meaning": "deliberately avoid using; abstain from", "tag": "avoid_reject"},
-  {"word": "shun", "meaning": "persistently avoid, ignore, or reject (someone or something)", "tag": "avoid_reject"},
-  {"word": "abstained", "meaning": "restrain oneself from doing or enjoying something", "tag": "avoid_reject"},
-  {"word": "forgo", "meaning": "omit or decline to take (something pleasant or valuable); go without", "tag": "avoid_reject"},
-  {"word": "renounce", "meaning": "formally declare one's abandonment of (a claim, right, or possession)", "tag": "avoid_reject"},
-  {"word": "spurn", "meaning": "reject with disdain or contempt", "tag": "avoid_reject"},
-  {"word": "repudiate", "meaning": "refuse to accept or be associated with", "tag": "avoid_reject"},
-  {"word": "gainsay", "meaning": "deny or contradict (a fact or statement)", "tag": "avoid_reject"},
-  {"word": "disavow", "meaning": "deny any responsibility or support for", "tag": "avoid_reject"},
-  {"word": "rebuff", "meaning": "reject (someone or something) in an abrupt or ungracious manner", "tag": "avoid_reject"},
-  {"word": "convoluted", "meaning": "(especially of an argument, story, or sentence) extremely complex and difficult to follow", "tag": "complex_difficult"},
-  {"word": "tortuous", "meaning": "full of twists and turns; excessively lengthy and complex", "tag": "complex_difficult"},
-  {"word": "labyrinthine", "meaning": "(of a network) like a labyrinth; irregular and twisting", "tag": "complex_difficult"},
-  {"word": "byzantine", "meaning": "(of a system or situation) excessively complicated, and typically involving a great deal of administrative detail", "tag": "complex_difficult"},
-  {"word": "intricate", "meaning": "very complicated or detailed", "tag": "complex_difficult"},
-  {"word": "knotty", "meaning": "(of a problem or matter) extremely difficult or intricate", "tag": "complex_difficult"},
-  {"word": "tangled", "meaning": "complicated and confused; chaotic", "tag": "complex_difficult"},
-  {"word": "involved", "meaning": "difficult to comprehend; complicated", "tag": "complex_difficult"},
-  {"word": "perplexing", "meaning": "completely baffling; very puzzling", "tag": "complex_difficult"},
-  {"word": "elaborate", "meaning": "involving many carefully arranged parts or details; detailed and complicated in design and planning", "tag": "complex_difficult"},
-  {"word": "cursory", "meaning": "hasty and therefore not thorough or detailed", "tag": "careless_hasty"},
-  {"word": "perfunctory", "meaning": "(of an action or gesture) carried out with a minimum of effort or reflection", "tag": "careless_hasty"},
-  {"word": "desultory", "meaning": "lacking a plan, purpose, or enthusiasm", "tag": "careless_hasty"},
-  {"word": "slapdash", "meaning": "done too hurriedly and carelessly", "tag": "careless_hasty"},
-  {"word": "slipshod", "meaning": "(typically of a person or method of work) characterized by a lack of care, thought, or organization", "tag": "careless_hasty"},
-  {"word": "haphazard", "meaning": "lacking any obvious principle of organization", "tag": "careless_hasty"},
-  {"word": "lax", "meaning": "not sufficiently strict, severe, or careful", "tag": "careless_hasty"},
-  {"word": "remiss", "meaning": "lacking care or attention to duty; negligent", "tag": "careless_hasty"},
-  {"word": "negligent", "meaning": "failing to take proper care in doing something", "tag": "careless_hasty"},
-  {"word": "inadvertent", "meaning": "not resulting from or achieved through deliberate planning", "tag": "careless_hasty"},
-  {"word": "austere", "meaning": "severe or strict in manner, attitude, or appearance", "tag": "plain_simple"},
-  {"word": "unadorned", "meaning": "not adorned; plain", "tag": "plain_simple"},
-  {"word": "stark", "meaning": "severe or bare in appearance or outline", "tag": "plain_simple"},
-  {"word": "spartan", "meaning": "showing the indifference to comfort or luxury traditionally associated with ancient Sparta", "tag": "plain_simple"},
-  {"word": "ascetic", "meaning": "characterized by or suggesting the practice of severe self-discipline and abstention from all forms of indulgence", "tag": "plain_simple"},
-  {"word": "rustic", "meaning": "made in a plain and simple fashion", "tag": "plain_simple"},
-  {"word": "homely", "meaning": "(of a person) unattractive in appearance", "tag": "plain_simple"},
-  {"word": "plain", "meaning": "not decorated or elaborate; simple or ordinary in character", "tag": "plain_simple"},
-  {"word": "basic", "meaning": "forming an essential foundation or starting point; fundamental", "tag": "plain_simple"},
-  {"word": "essential", "meaning": "absolutely necessary; extremely important", "tag": "plain_simple"},
-  {"word": "nuance", "meaning": "a subtle difference in or shade of meaning, expression, or sound", "tag": "subtle_detail"},
-  {"word": "subtlety", "meaning": "the quality or state of being subtle", "tag": "subtle_detail"},
-  {"word": "gradation", "meaning": "a scale or a series of successive changes, stages, or degrees", "tag": "subtle_detail"},
-  {"word": "distinction", "meaning": "a difference or contrast between similar things or people", "tag": "subtle_detail"},
-  {"word": "implication", "meaning": "the conclusion that can be drawn from something, although it is not explicitly stated", "tag": "subtle_detail"},
-  {"word": "innuendo", "meaning": "an allusive or oblique remark or hint, typically a suggestive or disparaging one", "tag": "subtle_detail"},
-  {"word": "insinuation", "meaning": "an unpleasant hint or suggestion of something bad", "tag": "subtle_detail"},
-  {"word": "intimation", "meaning": "an indication or hint", "tag": "subtle_detail"},
-  {"word": "nicety", "meaning": "a fine detail or distinction, especially one regarded as intricate and fussy", "tag": "subtle_detail"},
-  {"word": "refinement", "meaning": "the quality of being elegant and cultured", "tag": "subtle_detail"},
-  {"word": "cogent", "meaning": "(of an argument or case) clear, logical, and convincing", "tag": "persuasive_logical"},
-  {"word": "compelling", "meaning": "evoking interest, attention, or admiration in a powerfully irresistible way", "tag": "persuasive_logical"},
-  {"word": "valid", "meaning": "(of an argument or point) having a sound basis in logic or fact; reasonable or cogent", "tag": "persuasive_logical"},
-  {"word": "sound", "meaning": "based on reason, sense, or judgment", "tag": "persuasive_logical"},
-  {"word": "coherent", "meaning": "(of an argument, theory, or policy) logical and consistent", "tag": "persuasive_logical"},
-  {"word": "lucid", "meaning": "expressed clearly; easy to understand", "tag": "persuasive_logical"},
-  {"word": "rational", "meaning": "based on or in accordance with reason or logic", "tag": "persuasive_logical"},
-  {"word": "logical", "meaning": "of or according to the rules of logic or formal argument", "tag": "persuasive_logical"},
-  {"word": "analytic", "meaning": "relating to or using analysis or logical reasoning", "tag": "persuasive_logical"},
-  {"word": "reasonable", "meaning": "(of a person) having sound judgment; fair and sensible", "tag": "persuasive_logical"},
-  {"word": "paradox", "meaning": "a seemingly absurd or self-contradictory statement or proposition that when investigated or explained may prove to be well founded or true", "tag": "logic_problems"},
-  {"word": "dilemma", "meaning": "a situation in which a difficult choice has to be made between two or more alternatives", "tag": "logic_problems"},
-  {"word": "irony", "meaning": "the expression of one's meaning by using language that normally signifies the opposite", "tag": "logic_problems"},
-  {"word": "anomaly", "meaning": "something that deviates from what is standard, normal, or expected", "tag": "logic_problems"},
-  {"word": "ambivalence", "meaning": "the state of having mixed feelings or contradictory ideas about something or someone", "tag": "logic_problems"},
-  {"word": "ambiguity", "meaning": "the quality of being open to more than one interpretation; inexactness", "tag": "logic_problems"},
-  {"word": "contradiction", "meaning": "a combination of statements, ideas, or features of a situation that are opposed to one another", "tag": "logic_problems"},
-  {"word": "inconsistency", "meaning": "the fact or state of being inconsistent", "tag": "logic_problems"},
-  {"word": "discrepancy", "meaning": "a lack of compatibility or similarity between two or more facts", "tag": "logic_problems"},
-  {"word": "conundrum", "meaning": "a confusing and difficult problem or question", "tag": "logic_problems"},
-  {"word": "prosaic", "meaning": "having the style or diction of prose; lacking poetic beauty", "tag": "boring_ordinary"},
-  {"word": "pedestrian", "meaning": "lacking inspiration or excitement; dull", "tag": "boring_ordinary"},
-  {"word": "mundane", "meaning": "lacking interest or excitement; dull", "tag": "boring_ordinary"},
-  {"word": "banal", "meaning": "so lacking in originality as to be obvious and boring", "tag": "boring_ordinary"},
-  {"word": "hackneyed", "meaning": "(of a phrase or idea) lacking significance through having been overused", "tag": "boring_ordinary"},
-  {"word": "trite", "meaning": "(of a remark, opinion, or idea) overused and consequently of little import; lacking originality or freshness", "tag": "boring_ordinary"},
-  {"word": "insipid", "meaning": "lacking flavor", "tag": "boring_ordinary"},
-  {"word": "vapid", "meaning": "offering nothing that is stimulating or challenging", "tag": "boring_ordinary"},
-  {"word": "humdrum", "meaning": "lacking excitement or variety; dull; monotonous", "tag": "boring_ordinary"},
-  {"word": "monotonous", "meaning": "dull, tedious, and repetitious; lacking in variety and interest", "tag": "boring_ordinary"},
-  {"word": "iconoclast", "meaning": "a person who attacks cherished beliefs or institutions", "tag": "rebels_critics"},
-  {"word": "maverick", "meaning": "an orthodox or independent-minded person", "tag": "rebels_critics"},
-  {"word": "renegade", "meaning": "a person who deserts and betrays an organization, country, or set of principles", "tag": "rebels_critics"},
-  {"word": "dissident", "meaning": "a person who opposes official policy, especially that of an authoritarian state", "tag": "rebels_critics"},
-  {"word": "insurgent", "meaning": "rising in active revolt", "tag": "rebels_critics"},
-  {"word": "mutinous", "meaning": "(of a soldier or sailor) refusing to obey the orders of a person in authority", "tag": "rebels_critics"},
-  {"word": "subversive", "meaning": "seeking or intended to subvert an established system or institution", "tag": "rebels_critics"},
-  {"word": "heretic", "meaning": "a person holding an opinion at odds with what is generally accepted", "tag": "rebels_critics"},
-  {"word": "nonconformist", "meaning": "a person whose behavior or views do not conform to prevailing ideas or practices", "tag": "rebels_critics"},
-  {"word": "apostate", "meaning": "a person who renounces a religious or political belief or principle", "tag": "rebels_critics"},
-  {"word": "assuage", "meaning": "make (an unpleasant feeling) less intense", "tag": "comfort_soothe"},
-  {"word": "alleviate", "meaning": "make (suffering, deficiency, or a problem) less severe", "tag": "comfort_soothe"},
-  {"word": "mitigate", "meaning": "make less severe, serious, or painful", "tag": "comfort_soothe"},
-  {"word": "mollify", "meaning": "appease the anger or anxiety of (someone)", "tag": "comfort_soothe"},
-  {"word": "placate", "meaning": "make (someone) less angry or hostile", "tag": "comfort_soothe"},
-  {"word": "pacify", "meaning": "quell the anger, agitation, or excitement of", "tag": "comfort_soothe"},
-  {"word": "appease", "meaning": "pacify or placate (someone) by acceding to their demands", "tag": "comfort_soothe"},
-  {"word": "propitiate", "meaning": "win or regain the favor of (a god, spirit, or person)", "tag": "comfort_soothe"},
-  {"word": "conciliate", "meaning": "stop (someone) from being angry or discontented", "tag": "comfort_soothe"},
-  {"word": "allay", "meaning": "diminish or put at rest (fear, suspicion, or worry)", "tag": "comfort_soothe"},
-  {"word": "pragmatic", "meaning": "dealing with things sensibly and realistically in a way that is based on practical rather than theoretical considerations", "tag": "practical_real"},
-  {"word": "utilitarian", "meaning": "designed to be useful or practical rather than attractive", "tag": "practical_real"},
-  {"word": "realistic", "meaning": "having or showing a sensible and practical idea of what can be achieved or expected", "tag": "practical_real"},
-  {"word": "rational", "meaning": "based on or in accordance with reason or logic", "tag": "practical_real"},
-  {"word": "sensible", "meaning": "(of a statement or course of action) chosen in accordance with wisdom or prudence; likely to be of benefit", "tag": "practical_real"},
-  {"word": "down-to-earth", "meaning": "with no illusions or pretensions; practical and realistic", "tag": "practical_real"},
-  {"word": "matter-of-fact", "meaning": "unemotional and practical", "tag": "practical_real"},
-  {"word": "hard-nosed", "meaning": "realistic and determined; tough-minded", "tag": "practical_real"},
-  {"word": "expedient", "meaning": "(of an action) convenient and practical, although possibly improper or immoral", "tag": "practical_real"},
-  {"word": "functional", "meaning": "designed to be practical and useful, rather than attractive", "tag": "practical_real"},
-  {"word": "ephemeral", "meaning": "lasting for a very short time", "tag": "time_duration"},
-  {"word": "transient", "meaning": "lasting only for a short time; impermanent", "tag": "time_duration"},
-  {"word": "transitory", "meaning": "not permanent", "tag": "time_duration"},
-  {"word": "fleeting", "meaning": "lasting for a very short time", "tag": "time_duration"},
-  {"word": "evanescent", "meaning": "soon passing out of sight, memory, or existence", "tag": "time_duration"},
-  {"word": "momentary", "meaning": "lasting for a very short time; brief", "tag": "time_duration"},
-  {"word": "fugacious", "meaning": "tending to disappear; fleeting", "tag": "time_duration"},
-  {"word": "enduring", "meaning": "continuing or long-lasting", "tag": "time_duration"},
-  {"word": "perennial", "meaning": "lasting or existing for a long or apparently infinite time", "tag": "time_duration"},
-  {"word": "everlasting", "meaning": "lasting forever or a very long time", "tag": "time_duration"},
-  {"word": "impeccable", "meaning": "(of behavior, performance, or appearance) in accordance with the highest standards of propriety; faultless", "tag": "perfect_clean"},
-  {"word": "immaculate", "meaning": "(especially of a person or their clothes) perfectly clean, neat, or tidy", "tag": "perfect_clean"},
-  {"word": "flawless", "meaning": "without any blemishes or imperfections; perfect", "tag": "perfect_clean"},
-  {"word": "perfect", "meaning": "having all the required or desirable elements, qualities, or characteristics; as good as it is possible to be", "tag": "perfect_clean"},
-  {"word": "unblemished", "meaning": "not damaged or marked in any way; perfect", "tag": "perfect_clean"},
-  {"word": "pristine", "meaning": "in its original condition; unspoiled", "tag": "perfect_clean"},
-  {"word": "unsullied", "meaning": "not spoiled or made impure", "tag": "perfect_clean"},
-  {"word": "indefectible", "meaning": "not liable to fail, end, or decay", "tag": "perfect_clean"},
-  {"word": "infallible", "meaning": "incapable of making mistakes or being wrong", "tag": "perfect_clean"},
-  {"word": "irreproachable", "meaning": "beyond criticism; faultless", "tag": "perfect_clean"},
-  {"word": "exemplary", "meaning": "serving as a desirable model; representing the best of its kind", "tag": "perfect_clean"},
-  {"word": "paragon", "meaning": "a person or thing regarded as a perfect example of a particular quality", "tag": "perfect_clean"},
-  {"word": "archetype", "meaning": "a very typical example of a certain person or thing", "tag": "perfect_clean"},
-  {"word": "quintessence", "meaning": "the most perfect or typical example of a quality or class", "tag": "perfect_clean"},
-  {"word": "apotheosis", "meaning": "the highest point in the development of something; culmination or climax", "tag": "perfect_clean"},
-  {"word": "epitome", "meaning": "a person or thing that is a perfect example of a particular quality or type", "tag": "perfect_clean"},
-  {"word": "ideal", "meaning": "satisfying one's conception of what is perfect; most suitable", "tag": "perfect_clean"},
-  {"word": "embodiment", "meaning": "a tangible or visible form of an idea, quality, or feeling", "tag": "perfect_clean"},
-  {"word": "personification", "meaning": "the attribution of a personal nature or human characteristics to something nonhuman", "tag": "perfect_clean"},
-  {"word": "model", "meaning": "a system or thing used as an example to follow or imitate", "tag": "perfect_clean"},
-  {"word": "cacophony", "meaning": "a harsh, discordant mixture of sounds", "tag": "sound_noise"},
-  {"word": "din", "meaning": "a loud, unpleasant, and prolonged noise", "tag": "sound_noise"},
-  {"word": "racket", "meaning": "a loud unpleasant noise", "tag": "sound_noise"},
-  {"word": "clamor", "meaning": "a loud and confused noise, especially that of people shouting vehemently", "tag": "sound_noise"},
-  {"word": "uproar", "meaning": "a loud and impassioned noise or disturbance", "tag": "sound_noise"},
-  {"word": "hubbub", "meaning": "a chaotic din caused by a crowd of people", "tag": "sound_noise"},
-  {"word": "tumult", "meaning": "a loud, confused noise, especially one caused by a large mass of people", "tag": "sound_noise"},
-  {"word": "pandemonium", "meaning": "wild and noisy disorder or confusion; uproar", "tag": "sound_noise"},
-  {"word": "bedlam", "meaning": "a scene of uproar and confusion", "tag": "sound_noise"},
-  {"word": "strident", "meaning": "loud and harsh; grating", "tag": "sound_noise"},
-  {"word": "euphony", "meaning": "the quality of being pleasing to the ear", "tag": "sound_noise"},
-  {"word": "melody", "meaning": "a sequence of single notes that is musically satisfying", "tag": "sound_noise"},
-  {"word": "harmony", "meaning": "the combination of simultaneously sounded musical notes to produce chords and chord progressions having a pleasing effect", "tag": "sound_noise"},
-  {"word": "mellifluous", "meaning": "(of a voice or words) sweet or musical; pleasant to hear", "tag": "sound_noise"},
-  {"word": "dulcet", "meaning": "(especially of sound) sweet and soothing", "tag": "sound_noise"},
-  {"word": "lyrical", "meaning": "(of literature, art, or music) expressing the writer's emotions in an imaginative and beautiful way", "tag": "sound_noise"},
-  {"word": "sonorous", "meaning": "(of a person's voice or other sound) imposingly deep and full", "tag": "sound_noise"},
-  {"word": "resonant", "meaning": "(of sound) deep, clear, and continuing to sound or ring", "tag": "sound_noise"},
-  {"word": "mellow", "meaning": "(of a sound, voice, or color) pleasantly smooth or soft; free from harshness", "tag": "sound_noise"},
-  {"word": "soothing", "meaning": "having a gently calming effect", "tag": "sound_noise"}
-];
 
         // --- Global State ---
         let vocabularyWords = [];
-        let wordProgress = {}; // { word: { level: 'easy'|'hard'|'superhard', wrongAttempts: 0, viewed: true, nextReviewDate: 'YYYY-MM-DD' } }
-        let currentWordIndex = 0; 
+        let wordProgress = {};
         let flashcardDeckIndices = [];
+        let currentWordIndex = 0;
         let isFlipped = false;
         let currentMode = 'flashcard';
-        let currentQuizWordIndex = 0;
-        let reviewWords = [];
-        let currentQuizType = 'recognition';
         let currentQuizWord = null;
-        let userSettings = {};
+        let currentQuizType = 'recognition';
+        let userSettings = defaultSettings;
+        let touchStartX = 0;
+        let touchStartY = 0;
+
 
         // --- DOM Elements ---
-        const flashcardModeEl = document.getElementById('flashcard-mode');
-        const quizModeEl = document.getElementById('quiz-mode');
-        const reviewModeEl = document.getElementById('review-mode');
-        const manageModeEl = document.getElementById('manage-mode');
-        const settingsModeEl = document.getElementById('settings-mode'); // New
-
         const flashcardEl = document.getElementById('flashcard');
         const cardWordEl = document.getElementById('card-word');
         const cardMeaningEl = document.getElementById('card-meaning');
         const cardTagFrontEl = document.getElementById('card-tag-front');
-        const wrongCountEl = document.getElementById('wrong-count');
         const cardDeckStatusEl = document.getElementById('card-deck-status');
+        const wrongCountEl = document.getElementById('wrong-count');
         const errorEl = document.getElementById('errorMessage');
         const totalWordsCountEl = document.getElementById('total-words-count');
         const quizDueCountEl = document.getElementById('quiz-due-count');
         const clearDataModalEl = document.getElementById('clearDataModal');
-        const syncModalEl = document.getElementById('syncModal'); // New
-        const qrCodeContainerEl = document.getElementById('qrcode-container'); // New
-        const quizCompleteModalEl = document.getElementById('quizCompleteModal'); // NEW
+        const syncModalEl = document.getElementById('syncModal');
+        const qrCodeContainerEl = document.getElementById('qrcode-container'); 
 
-        // Quiz DOM Elements 
+        // Quiz DOM Elements
         const quizWordEl = document.getElementById('quiz-word');
         const quizMeaningRecallEl = document.getElementById('quiz-meaning-recall');
         const quizPromptRecallEl = document.getElementById('quiz-prompt-recall');
@@ -1712,7 +561,6 @@
         const recallCheckBtnEl = document.getElementById('recall-check-btn');
         const recallFeedbackEl = document.getElementById('recall-feedback');
         const nextQuizBtn = document.getElementById('nextQuizBtn');
-
         const markButtons = {
             easy: document.getElementById('mark-easy'),
             hard: document.getElementById('mark-hard'),
@@ -1723,31 +571,23 @@
             quiz: document.getElementById('mode-quiz'),
             review: document.getElementById('mode-review'),
             manage: document.getElementById('mode-manage'),
-            settings: document.getElementById('mode-settings') 
+            settings: document.getElementById('mode-settings')
         };
-        
-        // --- Data Serialization / QR Sync Logic ---
 
+        // --- Data Serialization / QR Sync Logic --- 
         /**
          * Compresses and encodes the combined data for QR transfer.
          * @returns {string} Base64-encoded compressed JSON string.
          */
         function exportDataToJSON() {
-            const data = {
-                vocab: vocabularyWords,
-                progress: wordProgress
-            };
+            const data = { vocab: vocabularyWords, progress: wordProgress };
             const jsonString = JSON.stringify(data);
-            
             // 1. Convert string to Uint8Array
             const dataBytes = new TextEncoder().encode(jsonString);
-            
             // 2. Compress using Pako (zlib/gzip)
             const compressed = pako.deflate(dataBytes);
-            
             // 3. Convert Uint8Array to a Base64 string for text transmission
             const base64 = btoa(String.fromCharCode.apply(null, compressed));
-
             return base64;
         }
 
@@ -1758,41 +598,41 @@
          */
         function importDataFromJSON(base64Data) {
             try {
-                // 1. Convert Base64 string back to Uint8Array/binary string
+                // 1. Decode Base64 string to binary string
                 const binaryString = atob(base64Data);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                
-                // 2. Decompress using Pako
-                const decompressed = pako.inflate(bytes, { to: 'string' });
-                
-                // 3. Parse JSON
-                return JSON.parse(decompressed);
+                // 2. Convert binary string to Uint8Array
+                const binaryBytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
+                // 3. Decompress using Pako
+                const decompressed = pako.inflate(binaryBytes);
+                // 4. Convert Uint8Array back to string
+                const jsonString = new TextDecoder().decode(decompressed);
+                // 5. Parse JSON
+                return JSON.parse(jsonString);
             } catch (e) {
-                console.error("Error importing/parsing sync data:", e);
+                console.error("Data import failed:", e);
                 return null;
             }
         }
 
         window.showSyncModal = function(type) {
             if (type === 'export') {
-                const data = exportDataToJSON();
-                document.getElementById('sync-modal-title').textContent = "Export Data via QR Code";
-                document.getElementById('sync-data-size').textContent = `${(data.length / 1024).toFixed(2)} KB`;
-                
-                // Clear previous QR code and generate new one
+                document.getElementById('sync-modal-title').textContent = "Export Data via QR Code (Source)";
                 qrCodeContainerEl.innerHTML = '';
-                new QRCode(qrCodeContainerEl, {
-                    text: data,
-                    width: 200,
-                    height: 200,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
+                const base64Data = exportDataToJSON();
+                document.getElementById('sync-data-size').textContent = `${base64Data.length} characters`;
+
+                if (base64Data.length > 0) {
+                    new QRCode(qrCodeContainerEl, {
+                        text: base64Data,
+                        width: 200,
+                        height: 200,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                } else {
+                    qrCodeContainerEl.innerHTML = '<p class="text-red-500">No data to export.</p>';
+                }
             }
             syncModalEl.style.display = 'block';
         }
@@ -1800,20 +640,19 @@
         window.hideSyncModal = function() {
             syncModalEl.style.display = 'none';
         }
-        
+
         window.importSyncDataFromTextarea = function() {
             const syncDataText = document.getElementById('sync-import-area').value.trim();
             if (!syncDataText) {
                 return displayError("Please paste the compressed data payload from the QR code into the text area.");
             }
-
             const importedData = importDataFromJSON(syncDataText);
-
+            
             if (importedData && Array.isArray(importedData.vocab) && typeof importedData.progress === 'object') {
                 vocabularyWords = importedData.vocab;
                 wordProgress = importedData.progress;
-                saveAllData(); 
-                initializeFlashcardDeck(); 
+                saveAllData();
+                initializeFlashcardDeck();
                 document.getElementById('sync-import-area').value = "";
                 displayError(`✅ Sync successful! Imported ${vocabularyWords.length} words and all progress data.`);
                 setMode('flashcard');
@@ -1821,9 +660,9 @@
                 displayError("❌ Sync failed. The pasted data is invalid, corrupted, or not in the correct compressed format.");
             }
         }
-        
-        // --- Settings / Dark Mode Logic ---
 
+
+        // --- Settings / Dark Mode Logic ---
         function loadSettings() {
             try {
                 const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -1840,8 +679,7 @@
             userSettings.darkMode = document.getElementById('dark-mode-toggle').checked;
             userSettings.swipeUp = document.getElementById('swipe-up-action').value;
             userSettings.swipeDown = document.getElementById('swipe-down-action').value;
-            userSettings.includeEasyInQuiz = document.getElementById('include-easy-toggle').checked; // NEW LINE
-
+            userSettings.includeEasyInQuiz = document.getElementById('include-easy-toggle').checked; 
             try {
                 localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(userSettings));
             } catch (e) {
@@ -1855,42 +693,67 @@
             document.documentElement.setAttribute('data-theme', userSettings.darkMode ? 'dark' : 'light');
             document.getElementById('dark-mode-toggle').checked = userSettings.darkMode;
             document.getElementById('dark-mode-label').textContent = userSettings.darkMode ? 'Dark' : 'Light';
-
+            
             // Apply new Quiz Setting (only if the element exists)
             if (document.getElementById('include-easy-toggle')) {
                 document.getElementById('include-easy-toggle').checked = userSettings.includeEasyInQuiz;
             }
-            
+
             // Apply Swipe Settings (only if the elements exist)
             if (document.getElementById('swipe-up-action')) {
                 document.getElementById('swipe-up-action').value = userSettings.swipeUp;
+            }
+            if (document.getElementById('swipe-down-action')) {
                 document.getElementById('swipe-down-action').value = userSettings.swipeDown;
             }
         }
 
-        window.toggleDarkMode = function(isDark) {
-            userSettings.darkMode = isDark;
-            saveSettings();
+        window.toggleDarkMode = function(isChecked) {
+             userSettings.darkMode = isChecked;
+             saveSettings();
         }
         
-        window.toggleIncludeEasy = function(isInclude) {
-            userSettings.includeEasyInQuiz = isInclude;
+        window.toggleIncludeEasy = function(isChecked) {
+            userSettings.includeEasyInQuiz = isChecked;
             saveSettings();
-            updateQuizDueCount(); // Update the quiz due count badge immediately
         }
 
-        // --- Touch/Gesture Logic ---
 
-        let touchStartX = 0;
-        let touchStartY = 0;
-        const SWIPE_THRESHOLD = 75; // Minimum distance for a swipe
-
+        // --- Mobile Swiping Logic ---
         function handleTouchStart(e) {
             touchStartX = e.changedTouches[0].screenX;
             touchStartY = e.changedTouches[0].screenY;
+            // Set transition to none during the drag for immediate feedback
+            flashcardEl.style.transition = 'none'; // ADDED for smoother drag
+        }
+
+        function handleTouchMove(e) {
+            const touchCurrentX = e.changedTouches[0].screenX;
+            const touchCurrentY = e.changedTouches[0].screenY;
+            const dx = touchCurrentX - touchStartX;
+            const dy = touchCurrentY - touchStartY;
+
+            // Apply live translation to the card (dx * 0.5 makes the card drag feel less "sticky" or heavy)
+            let transformValue = `translateX(${dx * 0.5}px) translateY(${dy * 0.5}px)`; // ADDED for live dragging
             
-            // Add visual feedback class immediately
-            flashcardEl.classList.add('transition-transform', 'duration-150');
+            // If the card is flipped, maintain the flipped state during translation
+            if (flashcardEl.classList.contains('flipped')) { 
+                transformValue += ' rotateY(180deg)'; 
+            }
+
+            flashcardEl.style.transform = transformValue; // MODIFIED to apply translation
+            
+            // Remove old classes
+            flashcardEl.classList.remove('swiping-up', 'swiping-down', 'swiping-left', 'swiping-right');
+
+            // Add new classes for visual cue (e.g., border color change)
+            if (Math.abs(dy) > 10 || Math.abs(dx) > 10) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    flashcardEl.classList.add(dx > 0 ? 'swiping-right' : 'swiping-left');
+                } else {
+                    flashcardEl.classList.add(dy < 0 ? 'swiping-up' : 'swiping-down');
+                }
+            }
         }
 
         function handleTouchEnd(e) {
@@ -1899,64 +762,54 @@
             const dx = touchEndX - touchStartX;
             const dy = touchEndY - touchStartY;
             
-            flashcardEl.classList.remove('swiping-up', 'swiping-down', 'swiping-left', 'swiping-right');
+            // Restore transition for smooth snap-back and flip
+            flashcardEl.style.transition = 'transform 0.2s ease-out'; // MODIFIED for snap-back transition
 
-            // --- Horizontal Swipe (Navigation) ---
-            if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
-                if (dx > 0) {
-                    navigateCard(-1); // Swipe Right (Previous)
-                } else {
-                    navigateCard(1);  // Swipe Left (Next)
-                }
-                e.stopPropagation(); 
-                return;
-            } 
+            // Reset transform for snap-back
+            if (flashcardEl.classList.contains('flipped')) { 
+                flashcardEl.style.transform = 'rotateY(180deg)';
+            } else {
+                flashcardEl.style.transform = ''; 
+            }
+
+            flashcardEl.classList.remove('swiping-up', 'swiping-down', 'swiping-left', 'swiping-right');
             
-            // --- Vertical Swipe (Difficulty Mark) ---
-            else if (Math.abs(dy) > SWIPE_THRESHOLD && Math.abs(dy) > Math.abs(dx)) {
-                if (dy < 0) {
-                    // Swipe Up (e.g., Easy)
+            // 1. Check for Horizontal swipe (Navigation)
+            if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+                if (dx < 0) {
+                    navigateCard(1); // Swipe Left = Next
+                    displayError("Navigated to **Next** word via Swipe Left.");
+                } else {
+                    navigateCard(-1); // Swipe Right = Previous
+                    displayError("Navigated to **Previous** word via Swipe Right.");
+                }
+                e.stopPropagation();
+            } 
+            // 2. Check for Vertical swipe (Difficulty Marking)
+            else if (Math.abs(dy) >= SWIPE_THRESHOLD && Math.abs(dy) > Math.abs(dx)) {
+                if (dy < 0) { 
                     markDifficulty(userSettings.swipeUp);
                     displayError(`Marked as **${userSettings.swipeUp}** via Swipe Up.`);
-                } else {
-                    // Swipe Down (e.g., Hard)
+                } else { 
                     markDifficulty(userSettings.swipeDown);
                     displayError(`Marked as **${userSettings.swipeDown}** via Swipe Down.`);
                 }
-                e.stopPropagation(); 
+                e.stopPropagation();
             }
-        }
-
-        function handleTouchMove(e) {
-             const touchCurrentX = e.changedTouches[0].screenX;
-             const touchCurrentY = e.changedTouches[0].screenY;
-             const dx = touchCurrentX - touchStartX;
-             const dy = touchCurrentY - touchStartY;
-
-             // Remove old classes
-             flashcardEl.classList.remove('swiping-up', 'swiping-down', 'swiping-left', 'swiping-right');
-
-             // Add new classes for visual cue
-             if (Math.abs(dy) > 10 || Math.abs(dx) > 10) {
-                 if (Math.abs(dx) > Math.abs(dy)) {
-                     flashcardEl.classList.add(dx > 0 ? 'swiping-right' : 'swiping-left');
-                 } else {
-                     flashcardEl.classList.add(dy < 0 ? 'swiping-up' : 'swiping-down');
-                 }
-             }
         }
 
         function setupTouchListeners() {
             if (flashcardEl && !flashcardEl.dataset.touchListenersSetup) {
+                // Changing to passive: false for touchmove and touchend to allow custom interaction/preventing default scroll if necessary, 
+                // but relying primarily on the transform manipulation for smoothness.
                 flashcardEl.addEventListener('touchstart', handleTouchStart, { passive: true });
-                flashcardEl.addEventListener('touchmove', handleTouchMove, { passive: true });
+                flashcardEl.addEventListener('touchmove', handleTouchMove, { passive: false });
                 flashcardEl.addEventListener('touchend', handleTouchEnd, { passive: false });
                 flashcardEl.dataset.touchListenersSetup = true;
             }
         }
-        
-        // --- Word Deck Management ---
 
+        // --- Word Deck Management ---
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -1972,67 +825,440 @@
             }
             flashcardDeckIndices = Array.from({ length: vocabularyWords.length }, (_, i) => i);
             shuffleArray(flashcardDeckIndices);
-            currentWordIndex = 0;
         }
 
+        function renderCard() {
+            if (vocabularyWords.length === 0) {
+                cardWordEl.textContent = "No Vocabulary Loaded";
+                cardMeaningEl.textContent = "Go to Word Manager to add words.";
+                cardTagFrontEl.textContent = "";
+                wrongCountEl.textContent = "";
+                cardDeckStatusEl.textContent = "";
+                return;
+            }
 
-        // --- Time/Date Utility ---
+            const actualVocabIndex = flashcardDeckIndices[currentWordIndex];
+            const wordData = vocabularyWords[actualVocabIndex];
+            const progress = wordProgress[wordData.word] || { wrongAttempts: 0, nextReviewDate: null, level: 'new' };
+
+            cardWordEl.textContent = wordData.word;
+            cardMeaningEl.textContent = wordData.meaning;
+            cardTagFrontEl.textContent = wordData.tag ? wordData.tag.replace(/_/g, ' ') : 'General';
+            cardDeckStatusEl.textContent = `Card ${currentWordIndex + 1} of ${flashcardDeckIndices.length} (Shuffled)`;
+
+            let reviewText = "";
+            if (progress.nextReviewDate) {
+                reviewText = `Next Review: ${progress.nextReviewDate}`;
+                if (isReviewDue(progress.nextReviewDate)) {
+                    reviewText = `<span class="text-red-600 font-bold">DUE TODAY</span> | ${reviewText}`;
+                }
+            }
+            
+            wrongCountEl.innerHTML = (progress.wrongAttempts > 0 ? `<span class="text-red-500 font-semibold">Missed ${progress.wrongAttempts} time(s).</span>` : '') + (reviewText ? `<div class="text-xs text-gray-700 mt-1">${reviewText}</div>` : '');
+
+            if (isFlipped) {
+                flashcardEl.classList.remove('flipped');
+                isFlipped = false;
+            }
+            updateDifficultyButtons(progress.level);
+        }
+
+        window.navigateCard = function(direction) {
+            if (vocabularyWords.length === 0 || flashcardDeckIndices.length === 0) return;
+
+            let newIndex = currentWordIndex + direction;
+
+            if (newIndex >= flashcardDeckIndices.length) {
+                initializeFlashcardDeck();
+                displayError("📚 Flashcard cycle complete! The deck has been reshuffled for a fresh start.");
+                currentWordIndex = 0;
+            } else if (newIndex < 0) {
+                currentWordIndex = flashcardDeckIndices.length - 1;
+            } else {
+                currentWordIndex = newIndex;
+            }
+
+            renderCard();
+        }
+
+        window.flipCard = function() {
+            isFlipped = !isFlipped;
+            flashcardEl.classList.toggle('flipped', isFlipped);
+            if (flashcardEl.style.transition === 'none') {
+                 flashcardEl.style.transition = 'transform 0.6s';
+                 flashcardEl.style.transform = flashcardEl.classList.contains('flipped') ? 'rotateY(180deg)' : '';
+            }
+        }
+
+        function updateDifficultyButtons(currentLevel) {
+            Object.values(markButtons).forEach(btn => btn.classList.remove('selected', 'border-blue-500', 'ring-2', 'ring-offset-2'));
+            const btn = markButtons[currentLevel];
+            if (btn) {
+                btn.classList.add('selected', 'border-blue-500', 'ring-2', 'ring-offset-2');
+            }
+        }
+        
+        window.markDifficulty = function(level) {
+            if (vocabularyWords.length === 0 || flashcardDeckIndices.length === 0) return;
+            
+            const actualVocabIndex = flashcardDeckIndices[currentWordIndex];
+            const wordData = vocabularyWords[actualVocabIndex];
+            
+            const nextReviewDate = getNextReviewDate(level);
+
+            saveWordProgress(wordData.word, {
+                level: level,
+                nextReviewDate: nextReviewDate
+            });
+
+            // Automatically move to the next card after marking
+            navigateCard(1); 
+        }
 
         function getNextReviewDate(level) {
             const date = new Date();
-            let daysToAdd = 0;
+            let days = 0;
+            
+            // SRS Logic
+            if (level === 'easy') days = 7;
+            else if (level === 'hard') days = 3;
+            else if (level === 'superhard' || level === 'missed') days = 1; // Missed is treated as Super Hard in schedule
 
-            switch (level) {
-                case 'easy':
-                    daysToAdd = 7; 
-                    break;
-                case 'hard':
-                    daysToAdd = 3; 
-                    break;
-                case 'superhard':
-                case 'missed':
-                    daysToAdd = 1; 
-                    break;
-                default:
-                    daysToAdd = 0;
-            }
-
-            date.setDate(date.getDate() + daysToAdd);
+            date.setDate(date.getDate() + days);
+            // Format as YYYY-MM-DD
             return date.toISOString().split('T')[0];
         }
-        
+
         function isReviewDue(reviewDate) {
-            if (!reviewDate) return true; 
+            if (!reviewDate) return true; // New words are always due
+
             const today = new Date().toISOString().split('T')[0];
             return reviewDate <= today;
         }
+        
+        // --- Quiz Logic ---
+        window.setQuizType = function(type) {
+            currentQuizType = type;
+            const isRecognition = type === 'recognition';
 
+            // Toggle Visibility
+            document.getElementById('quiz-options').classList.toggle('hidden', !isRecognition);
+            document.getElementById('recall-input-container').classList.toggle('hidden', isRecognition);
+            quizMeaningRecallEl.classList.toggle('hidden', isRecognition);
+            quizPromptRecallEl.classList.toggle('hidden', isRecognition);
+            quizWordEl.classList.toggle('hidden', !isRecognition);
 
-        // --- Local Storage Management ---
+            // Reload word
+            loadQuizWord();
+        }
 
-        function loadAllData() {
-            loadSettings(); 
+        function getQuizWords() {
+            if (vocabularyWords.length === 0) return [];
 
-            // 1. Load Vocabulary
-            try {
-                const storedVocab = localStorage.getItem(VOCAB_STORAGE_KEY);
-                vocabularyWords = storedVocab ? JSON.parse(storedVocab) : defaultVocabulary;
-            } catch (e) {
-                vocabularyWords = defaultVocabulary;
+            const eligibleWords = vocabularyWords.filter(wordData => {
+                const progress = wordProgress[wordData.word] || { level: 'new' };
+                // Filter out 'easy' words if the setting is disabled, unless they are newly added or missed.
+                if (progress.level === 'easy' && !userSettings.includeEasyInQuiz && progress.wrongAttempts === 0) return false;
+                
+                return true; // Include new, hard, superhard, or easy if setting is on
+            });
+            
+            // Prioritize words due for review or recently missed
+            const dueAndMissedWords = eligibleWords.filter(wordData => {
+                const progress = wordProgress[wordData.word] || { wrongAttempts: 0, nextReviewDate: null };
+                const isMissed = progress.wrongAttempts > 0;
+                const isDue = isReviewDue(progress.nextReviewDate);
+                const isNew = progress.level === 'new';
+
+                return isNew || isMissed || isDue;
+            });
+            
+            // If there are words due/missed, use them. Otherwise, use all eligible words.
+            const wordsToQuiz = (dueAndMissedWords.length > 0) ? dueAndMissedWords : eligibleWords;
+
+            // Sort by superhard > hard > easy/new, then randomly
+            return wordsToQuiz.sort((a, b) => {
+                const levelA = wordProgress[a.word]?.level || 'new';
+                const levelB = wordProgress[b.word]?.level || 'new';
+
+                if (levelA === 'superhard' && levelB !== 'superhard') return -1;
+                if (levelA !== 'superhard' && levelB === 'superhard') return 1;
+                if (levelA === 'hard' && (levelB === 'easy' || levelB === 'new')) return -1;
+                if ((levelA === 'easy' || levelA === 'new') && levelB === 'hard') return 1;
+                
+                return 0.5 - Math.random();
+            });
+        }
+
+        function generateOptions(correctWord, allWords) {
+            const correctMeaning = correctWord.meaning;
+            const potentialWrongMeanings = Array.from(new Set(allWords 
+                .filter(w => w.word !== correctWord.word) 
+                .map(w => w.meaning)));
+            
+            // Select up to 3 random wrong meanings
+            let wrongMeanings = potentialWrongMeanings 
+                .sort(() => 0.5 - Math.random()) 
+                .slice(0, 3);
+            
+            // Ensure we have 3 options total (1 correct + 2 wrong) if possible, filling with placeholders if needed
+            while (wrongMeanings.length < 3 && vocabularyWords.length > 1) {
+                const fillerMeaning = `A random meaning ${Math.random().toFixed(4)}`;
+                if (!wrongMeanings.includes(fillerMeaning) && fillerMeaning !== correctMeaning) {
+                    wrongMeanings.push(fillerMeaning);
+                }
             }
 
-            // 2. Load Progress
-            try {
-                const storedProgress = localStorage.getItem(PROGRESS_STORAGE_KEY);
-                wordProgress = storedProgress ? JSON.parse(storedProgress) : {};
-            } catch (e) {
-                wordProgress = {};
+            let options = [
+                { meaning: correctMeaning, correct: true, id: 0 },
+                ...wrongMeanings.map((m, i) => ({ meaning: m, correct: false, id: i + 1 }))
+            ];
+            
+            return options.sort(() => 0.5 - Math.random());
+        }
+
+        window.loadQuizWord = function() {
+            const quizWords = getQuizWords();
+            const quizStatusEl = document.getElementById('quiz-status');
+            nextQuizBtn.classList.add('hidden');
+            
+            const totalDue = quizWords.filter(w => isReviewDue(wordProgress[w.word]?.nextReviewDate)).length;
+            const dueText = totalDue > 0 ? `<span class="text-red-600 font-bold">${totalDue} words DUE!</span>` : `No words currently due for review.`;
+            quizStatusEl.innerHTML = `Quiz Progress: ${quizWords.length > 0 ? `1 of ${quizWords.length}` : '0 of 0'} (${dueText})`;
+
+
+            if (quizWords.length === 0) {
+                currentQuizWord = null;
+                quizWordEl.textContent = vocabularyWords.length === 0 ? "No Vocabulary Loaded" : "Quiz Completed!";
+                quizMeaningRecallEl.textContent = "";
+                quizOptionsEl.innerHTML = "";
+                recallInputEl.value = "";
+                recallInputEl.disabled = true;
+                recallCheckBtnEl.disabled = true;
+                recallFeedbackEl.innerHTML = vocabularyWords.length === 0 ? "Go to Word Manager to add words." : "All due words reviewed. Restart the quiz to shuffle the deck.";
+
+                if (vocabularyWords.length > 0) {
+                     // Show a restart button instead of next
+                     nextQuizBtn.textContent = "Restart Quiz";
+                     nextQuizBtn.onclick = function() { 
+                         // Re-initialize quiz (which calls getQuizWords and loads first word)
+                         loadQuizWord(); 
+                     };
+                     nextQuizBtn.classList.remove('hidden');
+                }
+                updateQuizDueCount();
+                return;
+            }
+
+            // Get the first word
+            currentQuizWord = quizWords[0];
+
+            if (currentQuizType === 'recognition') {
+                // Recognition (MCQ)
+                quizWordEl.textContent = currentQuizWord.word;
+                quizOptionsEl.innerHTML = "";
+
+                const options = generateOptions(currentQuizWord, vocabularyWords);
+
+                options.forEach(option => {
+                    const optionEl = document.createElement('div');
+                    optionEl.className = 'quiz-option p-3 rounded-lg text-lg cursor-pointer hover:bg-gray-50 transition duration-150 shadow-sm dark:hover:bg-gray-600';
+                    optionEl.textContent = option.meaning;
+                    optionEl.dataset.correct = option.correct;
+                    optionEl.onclick = () => checkRecognitionAnswer(optionEl, currentQuizWord.word);
+                    quizOptionsEl.appendChild(optionEl);
+                });
+
+            } else {
+                // Recall (Type In)
+                quizMeaningRecallEl.textContent = currentQuizWord.meaning;
+                recallInputEl.value = "";
+                recallInputEl.disabled = false;
+                recallCheckBtnEl.disabled = false;
+                recallFeedbackEl.innerHTML = "";
+            }
+            nextQuizBtn.textContent = "Next Question →";
+            nextQuizBtn.onclick = loadQuizWord;
+            
+            // Remove the word that is currently being quizzed from the front of the array for the next round
+            quizWords.shift(); 
+        }
+
+        // --- Answer Checking Logic ---
+        function updateWordProgressAfterQuiz(word, isCorrect) {
+            const currentProgress = wordProgress[word] || { wrongAttempts: 0, level: 'new' };
+            if (isCorrect) {
+                // If correct, mark as easy for immediate scheduling
+                saveWordProgress(word, { 
+                    wrongAttempts: 0, 
+                    level: 'easy', 
+                    nextReviewDate: getNextReviewDate('easy') 
+                });
+            } else {
+                // If incorrect, mark as superhard/missed and reset review date to tomorrow
+                const currentAttempts = (currentProgress.wrongAttempts || 0) + 1;
+                saveWordProgress(word, { 
+                    wrongAttempts: currentAttempts, 
+                    level: 'superhard', 
+                    nextReviewDate: getNextReviewDate('missed') // 'missed' schedule is 1 day
+                });
+            }
+        }
+
+        window.checkRecognitionAnswer = function(selectedEl, word) {
+            const isCorrect = selectedEl.dataset.correct === 'true';
+
+            // Disable all options
+            Array.from(quizOptionsEl.children).forEach(el => {
+                el.onclick = null;
+                el.classList.remove('hover:bg-gray-50', 'dark:hover:bg-gray-600');
+            });
+
+            if (isCorrect) {
+                selectedEl.classList.add('correct-answer', 'border-2');
+            } else {
+                selectedEl.classList.add('wrong-answer', 'border-2');
+                const correctEl = Array.from(quizOptionsEl.children).find(el => el.dataset.correct === 'true');
+                if (correctEl) correctEl.classList.add('correct-answer', 'border-2');
+            }
+
+            updateWordProgressAfterQuiz(word, isCorrect);
+            nextQuizBtn.classList.remove('hidden');
+        }
+
+        window.checkRecallAnswer = function() {
+            if (!currentQuizWord) return;
+
+            const userAnswer = recallInputEl.value.trim().toLowerCase();
+            const correctWord = currentQuizWord.word.trim().toLowerCase();
+            const word = currentQuizWord.word;
+            const isCorrect = userAnswer === correctWord;
+
+            recallInputEl.disabled = true;
+            recallCheckBtnEl.disabled = true;
+
+            if (isCorrect) {
+                recallFeedbackEl.innerHTML = `<span class="recall-result-correct font-bold">✅ Correct!</span>`;
+            } else {
+                recallFeedbackEl.innerHTML = `
+                    <span class="recall-result-wrong font-bold">❌ Wrong.</span> The correct word was: 
+                    <span class="font-bold">${currentQuizWord.word}</span>.
+                `;
+            }
+
+            updateWordProgressAfterQuiz(word, isCorrect);
+            nextQuizBtn.classList.remove('hidden');
+        }
+
+        // --- Review Mode Logic ---
+        window.filterReview = function(filter) {
+            const reviewListEl = document.getElementById('review-list');
+            const placeholderEl = document.getElementById('review-placeholder');
+            reviewListEl.innerHTML = '';
+            placeholderEl.classList.add('hidden');
+            
+            // Highlight active button
+            document.getElementById('filter-hard').classList.remove('bg-yellow-200');
+            document.getElementById('filter-superhard').classList.remove('bg-red-200');
+            document.getElementById('filter-missed').classList.remove('bg-red-600');
+            
+            if (filter === 'hard') {
+                document.getElementById('filter-hard').classList.add('bg-yellow-200');
+            } else if (filter === 'superhard') {
+                document.getElementById('filter-superhard').classList.add('bg-red-200');
+            } else if (filter === 'missed') {
+                document.getElementById('filter-missed').classList.add('bg-red-600');
+            }
+
+
+            let filteredWords = [];
+            if (filter === 'missed') {
+                filteredWords = vocabularyWords.filter(w => (wordProgress[w.word]?.wrongAttempts || 0) > 0);
+            } else {
+                filteredWords = vocabularyWords.filter(w => wordProgress[w.word]?.level === filter);
             }
             
-            // 3. Initialize the flashcard deck
-            initializeFlashcardDeck();
+            if (filteredWords.length === 0) {
+                reviewListEl.innerHTML = `<p class="text-gray-500">No words currently tagged as '${filter.replace('superhard', 'Super Hard').replace('missed', 'Missed in Quiz')}'.</p>`;
+                return;
+            }
 
-            totalWordsCountEl.textContent = vocabularyWords.length;
+            filteredWords.forEach(wordData => {
+                const progress = wordProgress[wordData.word];
+                const item = document.createElement('div');
+                item.className = 'p-3 bg-gray-50 rounded-lg flex justify-between items-center border border-gray-200 dark:bg-gray-700 dark:border-gray-600';
+                
+                let detailText = `Next Review: ${progress.nextReviewDate || 'N/A'}`;
+                if (filter === 'missed') {
+                    detailText = `Missed: ${progress.wrongAttempts} time(s)`;
+                }
+
+                item.innerHTML = `
+                    <div class="truncate">
+                        <span class="font-bold text-gray-900 dark:text-gray-100">${wordData.word}</span> 
+                        <span class="text-gray-600 dark:text-gray-400 text-xs">(${wordData.tag || 'General'})</span>
+                    </div>
+                    <span class="text-xs font-medium text-blue-600 dark:text-blue-400">${detailText}</span>
+                `;
+                reviewListEl.appendChild(item);
+            });
+        }
+
+        // --- Global Mode and UI Management ---
+        window.setMode = function(mode) {
+            currentMode = mode;
+            document.getElementById('flashcard-mode').classList.add('hidden');
+            document.getElementById('quiz-mode').classList.add('hidden');
+            document.getElementById('review-mode').classList.add('hidden');
+            document.getElementById('manage-mode').classList.add('hidden');
+            document.getElementById('settings-mode').classList.add('hidden');
+
+            document.getElementById(`${mode}-mode`).classList.remove('hidden');
+            updateModeButtons();
+
+            if (mode === 'flashcard') {
+                renderCard();
+            } else if (mode === 'quiz') {
+                // Ensure correct quiz type is selected on mode switch
+                const quizTypeRadios = document.getElementsByName('quiz_type');
+                const selectedRadio = Array.from(quizTypeRadios).find(r => r.checked);
+                currentQuizType = selectedRadio ? selectedRadio.value : 'recognition';
+                setQuizType(currentQuizType);
+            } else if (mode === 'manage') {
+                totalWordsCountEl.textContent = vocabularyWords.length;
+            } else if (mode === 'settings') {
+                applySettings();
+            }
+        }
+
+        function updateModeButtons() {
+            Object.keys(modeButtons).forEach(mode => {
+                if (mode === currentMode) {
+                    modeButtons[mode].classList.add('bg-blue-600', 'text-white');
+                    modeButtons[mode].classList.remove('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300', 'dark:bg-gray-600', 'dark:text-gray-100', 'dark:hover:bg-gray-700');
+                } else {
+                    modeButtons[mode].classList.remove('bg-blue-600', 'text-white');
+                    // Use theme-aware colors for non-selected buttons
+                    modeButtons[mode].classList.add('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300', 'dark:bg-gray-600', 'dark:text-gray-100', 'dark:hover:bg-gray-700');
+                }
+            });
+        }
+
+        // --- Data Loading and Saving ---
+        function loadAllData() {
+            try {
+                const storedVocab = localStorage.getItem(VOCAB_STORAGE_KEY);
+                const storedProgress = localStorage.getItem(PROGRESS_STORAGE_KEY);
+
+                vocabularyWords = storedVocab ? JSON.parse(storedVocab) : [];
+                wordProgress = storedProgress ? JSON.parse(storedProgress) : {};
+            } catch (e) {
+                console.error("Error loading data. Starting fresh.", e);
+                vocabularyWords = [];
+                wordProgress = {};
+            }
+            loadSettings(); // Load settings first
+            initializeFlashcardDeck();
             updateQuizDueCount();
         }
 
@@ -2049,48 +1275,44 @@
         function saveWordProgress(word, data) {
             wordProgress[word] = { ...wordProgress[word], ...data };
             saveAllData();
-            updateQuizDueCount(); 
+            updateQuizDueCount();
         }
 
         // --- Data Deletion Logic ---
-
         window.showClearDataModal = function() {
             clearDataModalEl.style.display = 'block';
         }
-
         window.hideClearDataModal = function() {
             clearDataModalEl.style.display = 'none';
         }
-
         window.clearAllDataConfirmed = function() {
             localStorage.removeItem(VOCAB_STORAGE_KEY);
             localStorage.removeItem(PROGRESS_STORAGE_KEY);
-            
+            localStorage.removeItem(SETTINGS_STORAGE_KEY); // Clear settings too
+
             // Reset in-memory state
-            vocabularyWords = defaultVocabulary;
+            vocabularyWords = [];
             wordProgress = {};
             currentWordIndex = 0;
+            userSettings = defaultSettings; // Reset settings state
 
             hideClearDataModal();
-            loadAllData(); 
-            setMode('manage'); 
+            loadAllData(); // Re-initialize everything
+            setMode('manage');
             displayError("All data has been successfully deleted from your browser's local storage.");
         }
 
-
         // --- UI Utility ---
-
         function displayError(message) {
             errorEl.innerHTML = message;
             errorEl.classList.remove('hidden', 'bg-red-100', 'border-red-400', 'text-red-700');
-            errorEl.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-700'); 
+            errorEl.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-700');
             setTimeout(() => errorEl.classList.add('hidden'), 5000);
         }
 
         function updateQuizDueCount() {
             const dueWords = getQuizWords().filter(w => isReviewDue(wordProgress[w.word]?.nextReviewDate));
             const count = dueWords.length;
-            
             quizDueCountEl.textContent = count;
             if (count > 0) {
                 quizDueCountEl.classList.remove('hidden');
@@ -2099,432 +1321,7 @@
             }
         }
 
-        function updateModeButtons() {
-            Object.keys(modeButtons).forEach(mode => {
-                if (mode === currentMode) {
-                    modeButtons[mode].classList.add('bg-blue-500', 'text-white');
-                    modeButtons[mode].classList.remove('text-gray-700', 'hover:bg-gray-200');
-                } else {
-                    modeButtons[mode].classList.remove('bg-blue-500', 'text-white');
-                    // Ensure the button classes are correct based on the theme in the long run,
-                    // but for a simple toggle, this is fine. Using 'text-gray-700' for dark/light mode
-                    // will rely on CSS variables doing the work.
-                    modeButtons[mode].classList.add('text-gray-700', 'hover:bg-gray-200');
-                }
-            });
-        }
-
-        window.setMode = function(mode) {
-            currentMode = mode;
-            [flashcardModeEl, quizModeEl, reviewModeEl, manageModeEl, settingsModeEl].forEach(el => el.classList.add('hidden'));
-
-            if (mode === 'flashcard') {
-                flashcardModeEl.classList.remove('hidden');
-                renderCard();
-            } else if (mode === 'quiz') {
-                quizModeEl.classList.remove('hidden');
-                currentQuizWordIndex = 0;
-                loadQuizWord();
-            } else if (mode === 'review') {
-                reviewModeEl.classList.remove('hidden');
-                document.getElementById('review-list').innerHTML = `<p class="text-gray-500" id="review-placeholder">Select a filter to see words for review.</p>`;
-            } else if (mode === 'manage') {
-                manageModeEl.classList.remove('hidden');
-                totalWordsCountEl.textContent = vocabularyWords.length;
-            } else if (mode === 'settings') {
-                settingsModeEl.classList.remove('hidden');
-                applySettings(); 
-            }
-
-            updateModeButtons();
-        }
-
-        // --- Flashcard Mode Logic ---
-
-        function updateDifficultyButtons() {
-            if (vocabularyWords.length === 0 || flashcardDeckIndices.length === 0) return;
-
-            const actualVocabIndex = flashcardDeckIndices[currentWordIndex];
-            const word = vocabularyWords[actualVocabIndex].word;
-            const progress = wordProgress[word] || { level: null };
-
-            Object.keys(markButtons).forEach(level => {
-                const btn = markButtons[level];
-                btn.classList.remove('selected', 'border-green-500', 'border-yellow-500', 'border-red-500');
-                if (progress.level === level) {
-                    btn.classList.add('selected');
-                    if (level === 'easy') btn.classList.add('border-green-500');
-                    else if (level === 'hard') btn.classList.add('border-yellow-500');
-                    else if (level === 'superhard') btn.classList.add('border-red-500');
-                }
-            });
-        }
-
-        function renderCard() {
-            if (vocabularyWords.length === 0 || flashcardDeckIndices.length === 0) {
-                cardWordEl.textContent = "No Vocabulary Loaded";
-                cardMeaningEl.textContent = "Go to Word Manager to add words.";
-                cardTagFrontEl.textContent = "";
-                wrongCountEl.textContent = "";
-                cardDeckStatusEl.textContent = "";
-                return;
-            }
-
-            const actualVocabIndex = flashcardDeckIndices[currentWordIndex];
-            const wordData = vocabularyWords[actualVocabIndex]; 
-            const progress = wordProgress[wordData.word] || { wrongAttempts: 0, nextReviewDate: null };
-
-            cardWordEl.textContent = wordData.word;
-            cardMeaningEl.textContent = wordData.meaning;
-            cardTagFrontEl.textContent = wordData.tag ? wordData.tag.replace(/_/g, ' ') : 'General';
-            cardDeckStatusEl.textContent = `Card ${currentWordIndex + 1} of ${flashcardDeckIndices.length} (Shuffled)`;
-            
-            let reviewText = "";
-            if (progress.nextReviewDate) {
-                reviewText = `Next Review: ${progress.nextReviewDate}`;
-                if (isReviewDue(progress.nextReviewDate)) {
-                    reviewText = `<span class="text-red-600 font-bold">DUE TODAY</span> | ${reviewText}`;
-                }
-            }
-
-            wrongCountEl.innerHTML = (progress.wrongAttempts > 0
-                ? `<span class="text-red-500 font-semibold">Missed ${progress.wrongAttempts} time(s).</span>`
-                : '') + (reviewText ? `<div class="text-xs text-gray-700 mt-1">${reviewText}</div>` : '');
-
-            if (isFlipped) {
-                flashcardEl.classList.remove('flipped');
-                isFlipped = false;
-            }
-            updateDifficultyButtons();
-        }
-
-        window.navigateCard = function(direction) {
-            if (vocabularyWords.length === 0 || flashcardDeckIndices.length === 0) return;
-            
-            let newIndex = currentWordIndex + direction;
-
-            if (newIndex >= flashcardDeckIndices.length) {
-                initializeFlashcardDeck();
-                displayError("📚 Flashcard cycle complete! The deck has been reshuffled for a fresh start.");
-                currentWordIndex = 0; 
-            } else if (newIndex < 0) {
-                currentWordIndex = flashcardDeckIndices.length - 1;
-            } else {
-                currentWordIndex = newIndex;
-            }
-            
-            renderCard();
-        }
-
-        window.flipCard = function() {
-            isFlipped = !isFlipped;
-            flashcardEl.classList.toggle('flipped', isFlipped);
-            
-            if (isFlipped && vocabularyWords.length > 0 && flashcardDeckIndices.length > 0) {
-                const actualVocabIndex = flashcardDeckIndices[currentWordIndex];
-                const word = vocabularyWords[actualVocabIndex].word;
-                if (!wordProgress[word] || !wordProgress[word].viewed) {
-                    saveWordProgress(word, { viewed: true, level: 'hard', nextReviewDate: getNextReviewDate('hard') });
-                }
-            }
-        }
-
-        window.markDifficulty = function(level) {
-            if (vocabularyWords.length === 0 || flashcardDeckIndices.length === 0) return;
-            
-            const actualVocabIndex = flashcardDeckIndices[currentWordIndex];
-            const word = vocabularyWords[actualVocabIndex].word;
-            
-            const nextReviewDate = getNextReviewDate(level);
-
-            saveWordProgress(word, { 
-                level: level, 
-                viewed: true, 
-                nextReviewDate: nextReviewDate
-            }); 
-            updateDifficultyButtons();
-            
-            // NEW: Navigate to the next card immediately after marking
-            navigateCard(1); 
-        }
-        
-        // --- Quiz Mode Logic ---
-        
-        window.setQuizType = function(type) {
-            currentQuizType = type;
-            loadQuizWord(); 
-        }
-
-        function getQuizWords() {
-            // Read from global settings
-            const includeEasy = userSettings.includeEasyInQuiz; 
-            
-            let eligibleWords = vocabularyWords.filter(wordData => {
-                const progress = wordProgress[wordData.word];
-                
-                // 1. Must have been viewed to be eligible for the quiz
-                if (!progress || !progress.viewed) return false;
-
-                // 2. Check the 'Include Easy' setting
-                if (!includeEasy && progress.level === 'easy') {
-                    return false; // Exclude 'easy' words if setting is off
-                }
-                
-                return true; // Include all other viewed words (hard, superhard, or easy if setting is on)
-            });
-            
-            const dueWords = eligibleWords.filter(wordData => {
-                const progress = wordProgress[wordData.word];
-                return isReviewDue(progress.nextReviewDate);
-            });
-
-            const wordsToQuiz = (dueWords.length > 0) ? dueWords : eligibleWords;
-            
-            return wordsToQuiz.sort((a, b) => {
-                const levelA = wordProgress[a.word]?.level || 'hard';
-                const levelB = wordProgress[b.word]?.level || 'hard';
-
-                if (levelA === 'superhard' && levelB !== 'superhard') return -1;
-                if (levelA !== 'superhard' && levelB === 'superhard') return 1;
-                if (levelA === 'hard' && levelB === 'easy') return -1;
-                if (levelA === 'easy' && levelB === 'hard') return 1;
-
-                return 0.5 - Math.random(); 
-            });
-        }
-
-        function generateOptions(correctWord, allWords) {
-            const correctMeaning = correctWord.meaning;
-            
-            const potentialWrongMeanings = Array.from(new Set(allWords
-                .filter(w => w.word !== correctWord.word)
-                .map(w => w.meaning)));
-
-            let wrongMeanings = potentialWrongMeanings
-                .sort(() => 0.5 - Math.random())
-                .slice(0, 3);
-            
-            while (wrongMeanings.length < 3 && vocabularyWords.length > 1) {
-                const fillerMeaning = `A random meaning ${Math.random().toFixed(4)}`;
-                if (!wrongMeanings.includes(fillerMeaning) && fillerMeaning !== correctMeaning) {
-                    wrongMeanings.push(fillerMeaning);
-                }
-            }
-
-            let options = [
-                { meaning: correctMeaning, correct: true, id: 0 },
-                ...wrongMeanings.map((m, i) => ({ meaning: m, correct: false, id: i + 1 }))
-            ];
-
-            return options.sort(() => 0.5 - Math.random());
-        }
-
-        window.loadQuizWord = function() {
-            const quizWords = getQuizWords();
-            const quizStatusEl = document.getElementById('quiz-status');
-            nextQuizBtn.classList.add('hidden');
-            
-            const totalDue = quizWords.filter(w => isReviewDue(wordProgress[w.word]?.nextReviewDate)).length;
-            const dueText = totalDue > 0 ? `<span class="text-red-600 font-bold">${totalDue} words DUE!</span>` : `No words currently due for review.`;
-
-            if (quizWords.length === 0) {
-                currentQuizWord = null;
-                // NEW: Show the quiz completion modal
-                if (vocabularyWords.length > 0) {
-                    quizCompleteModalEl.style.display = 'block';
-                }
-                
-                quizWordEl.textContent = vocabularyWords.length === 0 ? "No words available." : "Quiz Complete for now!";
-                quizOptionsEl.innerHTML = vocabularyWords.length === 0 
-                    ? '<p class="text-gray-500">Add words in the Word Manager.</p>' 
-                    : `<p class="text-gray-500">${dueText}. Check back later or mark more flashcards as hard/superhard.</p>`;
-                quizStatusEl.innerHTML = "";
-                quizMeaningRecallEl.classList.add('hidden');
-                quizPromptRecallEl.classList.add('hidden');
-                return;
-            }
-            
-            // If the current index has reached the end, reset it (start again)
-            if (currentQuizWordIndex >= quizWords.length) {
-                 currentQuizWordIndex = 0;
-            }
-
-            currentQuizWord = quizWords[currentQuizWordIndex];
-
-            quizStatusEl.innerHTML = `${dueText} | Question ${currentQuizWordIndex + 1} of ${quizWords.length}`;
-            
-            if (currentQuizType === 'recognition') {
-                quizWordEl.classList.remove('hidden');
-                quizWordEl.textContent = currentQuizWord.word;
-                quizMeaningRecallEl.classList.add('hidden');
-                quizPromptRecallEl.classList.add('hidden');
-                quizOptionsEl.classList.remove('hidden');
-                recallInputContainerEl.classList.add('hidden');
-                
-                const options = generateOptions(currentQuizWord, vocabularyWords);
-                quizOptionsEl.innerHTML = options.map((opt, index) =>
-                    `<div class="quiz-option" data-correct="${opt.correct}" onclick="checkRecognitionAnswer(this, '${currentQuizWord.word}')">
-                        <span class="font-medium text-blue-700 mr-2">${String.fromCharCode(65 + index)}.</span> ${opt.meaning}
-                    </div>`
-                ).join('');
-            } else {
-                quizWordEl.classList.add('hidden');
-                quizMeaningRecallEl.classList.remove('hidden');
-                quizPromptRecallEl.classList.remove('hidden');
-                quizMeaningRecallEl.textContent = currentQuizWord.meaning;
-                quizOptionsEl.classList.add('hidden');
-                recallInputContainerEl.classList.remove('hidden');
-                
-                recallInputEl.value = '';
-                recallInputEl.disabled = false;
-                recallCheckBtnEl.disabled = false;
-                recallFeedbackEl.innerHTML = '';
-                recallInputEl.focus();
-            }
-
-            currentQuizWordIndex++;
-        }
-
-        // NEW: Quiz Completion Modal Handlers
-        window.hideQuizCompleteModal = function() {
-            quizCompleteModalEl.style.display = 'none';
-            setMode('flashcard');
-        }
-
-        window.restartQuiz = function() {
-            quizCompleteModalEl.style.display = 'none';
-            currentQuizWordIndex = 0; // Reset index to start over
-            loadQuizWord(); 
-        }
-
-        // --- Answer Checking Logic ---
-
-        function updateWordProgressAfterQuiz(word, isCorrect) {
-            const currentProgress = wordProgress[word] || {};
-            
-            if (isCorrect) {
-                saveWordProgress(word, { 
-                    wrongAttempts: 0, 
-                    level: 'easy', 
-                    nextReviewDate: getNextReviewDate('easy') 
-                });
-            } else {
-                const currentAttempts = (currentProgress.wrongAttempts || 0) + 1;
-                saveWordProgress(word, { 
-                    wrongAttempts: currentAttempts, 
-                    level: 'superhard', 
-                    nextReviewDate: getNextReviewDate('missed') 
-                });
-            }
-        }
-
-        window.checkRecognitionAnswer = function(selectedEl, word) {
-            const isCorrect = selectedEl.dataset.correct === 'true';
-
-            Array.from(quizOptionsEl.children).forEach(el => {
-                el.onclick = null;
-                el.classList.remove('hover:bg-f3f7fe', 'hover:border-b0c9f1');
-                // Ensure all options lose hover/cursor pointer
-                el.style.cursor = 'default'; 
-            });
-
-            if (isCorrect) {
-                selectedEl.classList.add('correct-answer');
-            } else {
-                selectedEl.classList.add('wrong-answer');
-                const correctEl = Array.from(quizOptionsEl.children).find(el => el.dataset.correct === 'true');
-                if (correctEl) correctEl.classList.add('correct-answer');
-            }
-            
-            updateWordProgressAfterQuiz(word, isCorrect);
-            nextQuizBtn.classList.remove('hidden');
-        }
-
-        window.checkRecallAnswer = function() {
-            if (!currentQuizWord) return;
-            const userAnswer = recallInputEl.value.trim().toLowerCase();
-            const correctWord = currentQuizWord.word.trim().toLowerCase();
-            const word = currentQuizWord.word;
-
-            const isCorrect = userAnswer === correctWord;
-
-            recallInputEl.disabled = true;
-            recallCheckBtnEl.disabled = true;
-
-            if (isCorrect) {
-                recallFeedbackEl.innerHTML = `<span class="recall-result-correct font-bold text-green-600">✅ Correct!</span>`;
-            } else {
-                recallFeedbackEl.innerHTML = `
-                    <span class="recall-result-wrong font-bold text-red-600">❌ Incorrect.</span> 
-                    The correct word was: <span class="recall-result-correct font-bold text-green-600">${currentQuizWord.word}</span>
-                `;
-            }
-            
-            updateWordProgressAfterQuiz(word, isCorrect);
-            nextQuizBtn.classList.remove('hidden');
-        }
-
-        // --- Review Mode Logic ---
-
-        window.filterReview = function(filter) {
-            const reviewListEl = document.getElementById('review-list');
-            const filterButtons = document.querySelectorAll('#review-mode button');
-
-            filterButtons.forEach(btn => btn.classList.remove('bg-opacity-50', 'ring-2', 'ring-offset-2', 'ring-blue-500'));
-            document.getElementById(`filter-${filter}`).classList.add('bg-opacity-50', 'ring-2', 'ring-offset-2', 'ring-blue-500');
-
-            reviewWords = vocabularyWords.filter(wordData => {
-                const progress = wordProgress[wordData.word];
-                if (!progress) return false;
-
-                if (filter === 'missed') {
-                    return progress.wrongAttempts > 0;
-                }
-                return progress.level === filter;
-            });
-
-            if (reviewWords.length === 0) {
-                reviewListEl.innerHTML = `<p class="text-gray-500">No words found with the '${filter}' status.</p>`;
-                return;
-            }
-
-            reviewListEl.innerHTML = reviewWords.map(wordData => {
-                const progress = wordProgress[wordData.word];
-                const attempts = progress?.wrongAttempts || 0;
-                let attemptText = attempts > 0 ? `<span class="text-red-500 ml-2">(${attempts} mistakes)</span>` : '';
-                
-                const reviewDateText = progress.nextReviewDate ? 
-                    ` (Review: ${isReviewDue(progress.nextReviewDate) ? '<span class="text-red-600">DUE</span>' : progress.nextReviewDate})` : '';
-
-                return `<div class="p-3 bg-white border border-gray-200 rounded-lg flex justify-between items-center hover:bg-gray-50 cursor-pointer" onclick="viewReviewWord('${wordData.word}')">
-                            <span class="font-semibold text-gray-800">${wordData.word}${reviewDateText}</span>
-                            ${attemptText}
-                        </div>`;
-            }).join('');
-        }
-
-        window.viewReviewWord = function(word) {
-            const index = vocabularyWords.findIndex(w => w.word === word);
-            if (index !== -1) {
-                const deckIndex = flashcardDeckIndices.findIndex(i => i === index);
-                if(deckIndex !== -1) {
-                     currentWordIndex = deckIndex;
-                     setMode('flashcard');
-                     flipCard(); 
-                } else {
-                     initializeFlashcardDeck(); 
-                     const newDeckIndex = flashcardDeckIndices.findIndex(i => i === index);
-                     if(newDeckIndex !== -1) {
-                        currentWordIndex = newDeckIndex;
-                        setMode('flashcard');
-                        flipCard(); 
-                     }
-                }
-            }
-        }
-        
-        // --- Word Management Logic ---
-
+        // --- Word Import Logic ---
         window.addWordsFromJson = function() {
             const jsonText = document.getElementById('word-input-area').value.trim();
             if (!jsonText) {
@@ -2542,30 +1339,25 @@
                 const existingWordKeys = new Set(vocabularyWords.map(w => w.word.trim().toLowerCase()));
 
                 for (const item of newWords) {
-                    if (item && item.word && item.meaning) {
-                        const wordKey = item.word.trim();
-                        
-                        if (existingWordKeys.has(wordKey.toLowerCase())) {
-                            duplicates++;
-                            continue;
-                        }
+                    if (item.word && item.meaning) {
+                        const word = item.word.trim();
+                        const meaning = item.meaning.trim();
+                        const tag = (item.tag || 'General').trim();
 
-                        validNewWords.push({
-                            word: wordKey,
-                            meaning: item.meaning.trim(),
-                            tag: item.tag ? item.tag.trim() : 'manual_add'
-                        });
-                        existingWordKeys.add(wordKey.toLowerCase());
-                    } else {
-                        console.warn("Skipping invalid word object:", item);
+                        if (!existingWordKeys.has(word.toLowerCase())) {
+                            validNewWords.push({ word, meaning, tag });
+                            existingWordKeys.add(word.toLowerCase());
+                        } else {
+                            duplicates++;
+                        }
                     }
                 }
 
                 if (validNewWords.length > 0) {
-                    vocabularyWords = [...vocabularyWords, ...validNewWords];
-                    saveAllData(); 
+                    vocabularyWords = vocabularyWords.concat(validNewWords);
+                    saveAllData();
                     initializeFlashcardDeck(); 
-                    document.getElementById('word-input-area').value = ""; 
+                    document.getElementById('word-input-area').value = "";
                     displayError(`Successfully added ${validNewWords.length} new words! ${duplicates > 0 ? `(${duplicates} duplicates skipped).` : ''}`);
                     totalWordsCountEl.textContent = vocabularyWords.length;
                 } else if (duplicates > 0) {
@@ -2598,10 +1390,6 @@
                 }
                 if (event.target == syncModalEl) {
                     hideSyncModal();
-                }
-                 // NEW: Close modal on outside click
-                if (event.target == quizCompleteModalEl) {
-                    hideQuizCompleteModal();
                 }
             }
         };
